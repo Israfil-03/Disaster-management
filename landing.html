@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Disaster Management - Welcome</title>
+    <meta name="description" content="Prepare, respond, and recover. Your companion for disaster readiness and community safety." />
+    <link rel="icon" href="assets/icons/app-mark.svg" type="image/svg+xml" />
+  <link rel="preload" as="image" href="assets/icons/hazard-multi.svg" />
+    <link rel="stylesheet" href="assets/landing.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="site-header">
+      <div class="wrap">
+        <div class="header-top">
+          <a class="brand" href="landing.html" aria-label="Disaster Management Home">
+            <img src="assets/icons/app-mark.svg" alt="National Emblem" class="brand-mark" />
+            <span class="brand-text">
+              <strong>Disaster Management</strong>
+              <span class="sub">Government Advisory Portal</span>
+            </span>
+          </a>
+          <nav class="nav">
+            <a class="nav-link" href="auth.html?mode=login">Login</a>
+            <a class="btn btn-primary" href="auth.html?mode=signup">Register</a>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" class="main">
+      <section class="hero">
+        <div class="wrap">
+          <h1>National Disaster Preparedness and Response</h1>
+          <p class="lead">Access official advisories, alerts, and guidance to prepare for and respond to emergencies. Stay informed. Stay safe.</p>
+          <div class="cta">
+            <a class="btn btn-primary" href="auth.html?mode=signup">Register</a>
+            <a class="btn" href="auth.html?mode=login">Login</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="info">
+        <div class="wrap grid">
+          <article class="info-card">
+            <h2>Official Alerts</h2>
+            <p>Receive timely, location‑based alerts from authorised agencies.</p>
+          </article>
+          <article class="info-card">
+            <h2>Preparedness</h2>
+            <p>Household checklists and practical guidance for common hazards.</p>
+          </article>
+          <article class="info-card">
+            <h2>Resources</h2>
+            <p>Find shelters, emergency contacts, and local support information.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer">
+        <p>&copy; <span id="year"></span> Disaster Management Portal</p>
+        <nav class="footer-nav">
+          <a href="auth.html?mode=login">Login</a>
+          <a href="auth.html?mode=signup">Register</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="assets/landing.js"></script>
+  </body>
+  </html>

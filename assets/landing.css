@@ -1,0 +1,59 @@
+/* Lightweight, government-style landing page */
+:root {
+  --bg: #ffffff;
+  --text: #1a1a1a;
+  --muted: #4a4a4a;
+  --border: #d9d9d9;
+  --blue: #0b5ed7; /* India gov sites typically use blue accents */
+  --blue-600: #0a53be;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.wrap { width: min(1100px, 92vw); margin: 0 auto; }
+.skip-link { position: absolute; left: -999px; top: -999px; background: #000; color: #fff; padding: 8px 12px; }
+.skip-link:focus { left: 8px; top: 8px; z-index: 1000; }
+
+.site-header { border-bottom: 1px solid var(--border); background: #f7f9fc; }
+.header-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.brand-mark { width: 32px; height: 32px; }
+.brand-text { display: grid; line-height: 1.1; }
+.brand-text .sub { color: var(--muted); font-size: 12px; }
+.nav { display: inline-flex; gap: 12px; align-items: center; }
+.nav-link { color: var(--blue); text-decoration: none; font-weight: 600; }
+.nav-link:hover { text-decoration: underline; }
+
+.btn { display: inline-block; border: 1px solid var(--border); padding: 8px 14px; border-radius: 6px; text-decoration: none; color: var(--text); background: #fff; }
+.btn-primary { background: var(--blue); color: #fff; border-color: var(--blue-600); }
+.btn-primary:hover { background: var(--blue-600); }
+
+.main { padding-bottom: 40px; }
+.hero { padding: 28px 0; border-bottom: 1px solid var(--border); background: #ffffff; }
+.hero h1 { margin: 0 0 8px; font-size: clamp(22px, 4.2vw, 32px); }
+.lead { margin: 0 0 14px; color: var(--muted); max-width: 68ch; }
+.cta { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.info { padding: 20px 0 0; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.info-card { border: 1px solid var(--border); padding: 14px; border-radius: 8px; background: #fff; }
+.info-card h2 { font-size: 16px; margin: 0 0 6px; }
+.info-card p { margin: 0; color: var(--muted); }
+
+.site-footer { border-top: 1px solid var(--border); background: #f7f9fc; margin-top: 24px; }
+.footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; color: var(--muted); }
+.footer-nav { display: inline-flex; gap: 12px; }
+.footer-nav a { color: var(--blue); text-decoration: none; }
+.footer-nav a:hover { text-decoration: underline; }
+
+@media (max-width: 760px) {
+  .grid { grid-template-columns: 1fr; }
+}
