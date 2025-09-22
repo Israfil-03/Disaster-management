@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Community Disaster Management</title>
+  <meta name="description" content="Community-centric multiple disaster information, alerts, resources, and coordination dashboard for India." />
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <!-- Skip link -->
+  <a href="#app" class="sr-only focusable" id="skip-link">Skip to main content</a>
+  <header role="banner">
+  <!-- Header: brand + controls -->
+  <div class="container topbar header-topbar" aria-label="Global header">
+  <div class="brand header-brand">
+        <div class="logo" aria-hidden="true"><span class="logo-icon" data-icon="app-mark" aria-hidden="true"></span></div>
+        <div>
+          <div class="title">DISASTER</div>
+          <div class="tag">Community Disaster Management</div>
+        </div>
+      </div>
+  <!-- Controls: role/lang/contrast/profile -->
+  <div class="controls header-controls" role="group" aria-label="Header controls">
+        <select id="role-select" class="select" aria-label="Select user role">
+          <option value="citizen">Citizen</option>
+          <option value="authority">Local Authority</option>
+          <option value="ndrf">NDRF / Emergency</option>
+          <option value="ngo">NGO / Volunteer</option>
+        </select>
+        <select id="lang-select" class="select lang" aria-label="Select language">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी</option>
+          <option value="bn">বাংলা</option>
+          <option value="te">తెలుగు</option>
+          <option value="ta">தமிழ்</option>
+          <option value="mr">मराठी</option>
+          <option value="gu">ગુજરાતી</option>
+          <option value="kn">ಕನ್ನಡ</option>
+          <option value="ml">മലയാളം</option>
+          <option value="pa">ਪੰਜਾਬੀ</option>
+        </select>
+        <button class="btn outline" id="contrast-toggle" aria-pressed="false" aria-label="Toggle high contrast">High contrast</button>
+        <div class="profile-wrapper">
+          <button class="btn profile-btn" id="profile-toggle" aria-label="User profile">
+            <span class="profile-icon" data-icon="profile" aria-hidden="true"></span>
+          </button>
+          <div class="profile-dropdown" id="profile-dropdown">
+            <div class="profile-header">
+              <div class="profile-avatar">👤</div>
+              <div>
+                <div class="profile-name">User Profile</div>
+                <div class="profile-role" id="profile-role-display">Citizen</div>
+              </div>
+            </div>
+            <div class="profile-content">
+              <h4>Alert Preferences</h4>          
+              <div class="switcher" role="group" aria-label="Alert channels">
+                <label><input type="checkbox" checked /> SMS</label>
+                <label><input type="checkbox" checked /> Web push</label>
+                <label><input type="checkbox" /> Email</label>
+                <label><input type="checkbox" /> IVR</label>
+                <label><input type="checkbox" /> Community leader</label>
+              </div>
+              <h4>Accessibility</h4>
+              <div class="switcher">
+                <label><input type="checkbox" id="high-contrast" /> High contrast</label>
+                <label><input type="checkbox" id="keyboard-hints" /> Keyboard hints</label>
+                <label><input type="checkbox" id="large-text" /> Large text</label>
+              </div>
+              <div class="profile-footer">
+                <button class="btn outline profile-close" id="profile-close">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+  <!-- Tabs: primary nav -->
+      <nav class="tabs" aria-label="Primary">
+        <div class="tab-list" role="tablist">
+          <button class="tab active" role="tab" aria-selected="true" aria-controls="dashboard-view" id="dashboard-tab">Dashboard</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="alerts-view" id="alerts-tab">Alerts</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="report-view" id="report-tab">Report</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="map-view" id="map-tab">Map</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="resources-view" id="resources-tab">Resources</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="volunteers-view" id="volunteers-tab">Volunteers</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="education-view" id="education-tab">Do's & Don'ts</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="donate-view" id="donate-tab">Donate</button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" id="app" aria-live="polite">
+  <!-- PAGE: Dashboard -->
+  <section id="dashboard-view" class="view tab-view active" role="region" aria-labelledby="dashboard-tab">
+  <div class="row layout-row justify-between items-center">
+    <div class="role-badge" id="role-display">Role: Citizen</div>
+    <div class="chip"><span class="chip-icon" data-icon="hazard-multi" aria-hidden="true"></span> Multi-hazard ready</div>
+      </div>
+
+  <div class="grid cols-3 grid-3 mt-16">
+  <!-- Card: Early Warnings -->
+  <div class="card">
+          <div class="card-header"><strong>Early Warnings</strong><span class="muted">Live feed</span></div>
+          <div class="card-body">
+            <div class="stat stat-item"><span>Active alerts</span><span id="alerts-count" class="ok">3</span></div>
+            <div class="stat stat-item"><span>High priority</span><span id="high-priority-count" class="warn">1</span></div>
+            <div class="stat stat-item"><span>Areas impacted</span><span id="areas-count" class="muted">2</span></div>
+            <p class="help help-text">LIVE ALERTS.</p>
+          </div>
+        </div>
+  <!-- Card: Reports Queue -->
+  <div class="card">
+          <div class="card-header"><strong>Reports Queue</strong><span class="muted hide-sm">Community</span></div>
+          <div class="card-body">
+            <div class="stat stat-item"><span>New reports</span><span id="reports-count" class="warn">5</span></div>
+            <div class="stat stat-item"><span>Verified</span><span id="verified-count" class="ok">2</span></div>
+            <div class="stat stat-item"><span>Pending review</span><span id="pending-count" class="muted">3</span></div>
+            <p class="help">Verified.</p>
+          </div>
+        </div>
+  <!-- Card: Resources -->
+  <div class="card">
+          <div class="card-header"><strong>Resources</strong><span class="muted hide-sm">Logistics</span></div>
+          <div class="card-body">
+            <div class="stat"><span>Shelters open</span><span id="shelters-count" class="ok">4</span></div>
+            <div class="stat"><span>Beds available</span><span id="beds-count" class="ok">320</span></div>
+            <div class="stat"><span>Relief consignments</span><span id="supplies-count" class="muted">7</span></div>
+            <p class="help help-text">Shelter and supply.</p>
+          </div>
+        </div>
+      </div>
+
+  <div class="cards card-grid mt-16">
+  <!-- Card: Recent Alerts (#alert-feed) -->
+  <div class="card">
+          <div class="card-header"><strong>Recent Alerts</strong><span class="chip"><span class="chip-icon" data-icon="bell" aria-hidden="true"></span> Multi-channel</span></div>
+          <div class="card-body">
+            <ul id="alert-feed" aria-label="Recent alerts"></ul>
+          </div>
+        </div>
+  <!-- Card: Nearby Shelters (#shelter-list) -->
+  <div class="card">
+          <div class="card-header"><strong>Nearby Shelters</strong><span class="muted">Capacity</span></div>
+          <div class="card-body">
+            <table aria-label="Shelter list">
+              <thead><tr><th>Name</th><th>Capacity</th><th>Available</th><th>Distance</th></tr></thead>
+              <tbody id="shelter-list"></tbody>
+            </table>
+          </div>
+        </div>
+  <!-- Card: Quick Actions -->
+  <div class="card">
+          <div class="card-header"><strong>Quick Actions</strong><span class="muted">Shortcuts</span></div>
+          <div class="card-body">
+            <div class="row">
+              <button class="btn accent" data-nav="report-view">Report incident</button>
+              <button class="btn brand" data-nav="alerts-view">Subscribe alerts</button>
+              <button class="btn" data-nav="volunteers-view">Join as volunteer</button>
+            </div>
+            <p class="help mt-10">Use Quick Actions to jump to critical workflows instantly.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  <!-- PAGE: Alerts -->
+  <section id="alerts-view" class="view tab-view" role="region" aria-labelledby="alerts-tab">
+      <div class="grid cols-2">
+        <div class="card">
+          <div class="card-header"><strong>Alert Feed</strong><span class="muted">IMD / NDMA / Crowdsourced</span></div>
+          <div class="card-body">
+            <div class="banner mb-10" role="status" aria-live="polite">
+              Latest official and community alerts appear here in real time.
+            </div>
+            <!-- Filters: hazards + region -->
+            <div class="row mb-10">
+              <div class="switcher" role="group" aria-label="Hazard filter" id="hazard-filters">
+                <!-- JS will populate hazard checkboxes -->
+              </div>
+            </div>
+            <div class="row mb-10">
+              <label class="sr-only" for="filter-state">State / UT</label>
+              <select id="filter-state" class="select" title="Filter by State/UT"></select>
+              <label class="sr-only" for="filter-district">District</label>
+              <select id="filter-district" class="select" title="Filter by District"></select>
+              <button class="btn" id="clear-filters">Clear filters</button>
+            </div>
+            <!-- Table: alerts (#alerts-table) -->
+            <table>
+              <thead><tr><th>Time</th><th>Hazard</th><th>Severity</th><th>Message</th><th>Area</th></tr></thead>
+              <tbody id="alerts-table"></tbody>
+            </table>
+          </div>
+        </div>
+  <!-- Broadcast: authority/NDRF only -->
+        <div class="card role-only authority ndrf">
+          <div class="card-header"><strong>Broadcast Alert</strong><span class="muted">Authority only</span></div>
+          <div class="card-body">
+            <label for="alert-message">Message</label>
+            <textarea id="alert-message" class="input" rows="4" placeholder="Enter concise alert with instructions"></textarea>
+            <div class="row">
+              <label class="sr-only" for="alert-hazard">Hazard</label>
+              <select id="alert-hazard" class="select" title="Hazard"></select>
+              <label class="sr-only" for="alert-severity">Severity</label>
+              <select id="alert-severity" class="select">
+                <option>Low</option><option>Medium</option><option>High</option><option>Severe</option>
+              </select>
+            </div>
+            <div class="row mt-8">
+              <label class="sr-only" for="alert-state">State / UT</label>
+              <select id="alert-state" class="select" title="State/UT"></select>
+              <label class="sr-only" for="alert-district">District</label>
+              <select id="alert-district" class="select" title="District"></select>
+              <button class="btn warn" id="send-alert">Send</button>
+            </div>
+            <p class="help">Authority/NDRF can issue geo-targeted alerts for rapid dissemination.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  <!-- PAGE: Report -->
+  <section id="report-view" class="view tab-view" role="region" aria-labelledby="report-tab">
+      <div class="grid cols-2">
+  <!-- Form: report incident -->
+        <div class="card">
+          <div class="card-header"><strong>Report Incident</strong><span class="muted">Citizen</span></div>
+          <div class="card-body">
+            <label for="report-type">Incident type</label>
+            <select id="report-type" class="select">
+              <option>Flood</option>
+              <option>Cyclone</option>
+              <option>Heatwave</option>
+              <option>Cold Wave</option>
+              <option>Landslide</option>
+              <option>Earthquake</option>
+              <option>Thunderstorm</option>
+              <option>Lightning</option>
+              <option>Drought</option>
+              <option>Forest Fire</option>
+              <option>Tsunami</option>
+              <option>Heavy Rain</option>
+              <option>Fire</option>
+              <option>Health</option>
+            </select>
+            <label for="report-description">Description</label>
+            <textarea id="report-description" class="input" rows="4" placeholder="What happened, how many affected, urgency..."></textarea>
+            <div class="row">
+              <label class="sr-only" for="report-location">Location</label>
+              <input id="report-location" class="input" placeholder="Village / Landmark / Coordinates" />
+              <input id="report-contact" class="input" placeholder="Contact (optional)" />
+            </div>
+            <div class="row">
+              <button class="btn brand" id="submit-report">Submit</button>
+              <span id="report-message" class="muted" role="status" aria-live="polite"></span>
+            </div>
+            <p class="help">Please provide accurate reports to help responders prioritize and route assistance effectively.</p>
+          </div>
+        </div>
+
+  <!-- Table: verify (#verify-list) -->
+        <div class="card role-only authority ndrf">
+          <div class="card-header"><strong>Verify Reports</strong><span class="muted">Authority/NDRF</span></div>
+          <div class="card-body">
+            <table>
+              <thead><tr><th>Time</th><th>Type</th><th>Location</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="verify-list"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  <!-- PAGE: Map -->
+  <section id="map-view" class="view tab-view" role="region" aria-labelledby="map-tab">
+      <div class="card">
+        <div class="card-header"><strong>Risk & Impact Map</strong><span class="muted">Placeholder</span></div>
+          <div class="card-body">
+          <div class="map-container" role="img" aria-label="Map placeholder with risk layers">
+            <span class="map-placeholder-icon" data-icon="map" aria-hidden="true"></span>
+          </div>
+          <p class="help mt-8">LIVE MAP.</p>
+        </div>
+      </div>
+    </section>
+
+  <!-- PAGE: Resources -->
+  <section id="resources-view" class="view tab-view" role="region" aria-labelledby="resources-tab">
+      <div class="grid cols-2">
+        <div class="card">
+          <div class="card-header"><strong>Resources Map</strong><span class="muted">Interactive</span></div>
+          <div class="card-body">
+            <div class="resources-map" role="img" aria-label="Resources location map">
+              <div class="map-placeholder">
+                <span class="map-icon">🗺️</span>
+                <p>MAP SECTION FOR RESOURCES.NEED TO EDIT LATER!!!!</p>
+                <div class="map-legend">
+                  <div class="legend-item"><span class="legend-color shelter"></span> Shelters</div>
+                  <div class="legend-item"><span class="legend-color hospital"></span> Hospitals</div>
+                  <div class="legend-item"><span class="legend-color supply"></span> Supply Centers</div>
+                  <div class="legend-item"><span class="legend-color emergency"></span> Emergency Services</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+  <!-- Table: shelters (#resources-shelters) -->
+        <div class="card">
+          <div class="card-header"><strong>Shelters</strong><span class="muted">Capacity</span></div>
+          <div class="card-body">
+            <table>
+              <thead><tr><th>Name</th><th>Capacity</th><th>Available</th><th>Contact</th></tr></thead>
+              <tbody id="resources-shelters"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+  <!-- Table: supplies (#resources-supplies) -->
+  <div class="card role-only authority ndrf ngo mt-16">
+        <div class="card-header"><strong>Supply Tracking</strong><span class="muted">Logistics</span></div>
+        <div class="card-body">
+          <table>
+            <thead><tr><th>Consignment</th><th>Type</th><th>Status</th><th>ETA</th></tr></thead>
+            <tbody id="resources-supplies"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  <!-- PAGE: Volunteers -->
+  <section id="volunteers-view" class="view tab-view" role="region" aria-labelledby="volunteers-tab">
+      <div class="grid cols-2">
+  <!-- Table: volunteers (#volunteer-list) -->
+        <div class="card">
+          <div class="card-header"><strong>Volunteer Board</strong><span class="muted">Community</span></div>
+          <div class="card-body">
+            <table>
+              <thead><tr><th>Name</th><th>Skill</th><th>Area</th><th>Status</th></tr></thead>
+              <tbody id="volunteer-list"></tbody>
+            </table>
+          </div>
+        </div>
+  <!-- Form: assign task → Table: tasks (#task-list) -->
+        <div class="card role-only ngo authority ndrf">
+          <div class="card-header"><strong>Assign Tasks</strong><span class="muted">Coordinators</span></div>
+          <div class="card-body">
+            <div class="row">
+              <label class="sr-only" for="task-title">Task title</label>
+              <input class="input" id="task-title" placeholder="Task title" />
+              <label class="sr-only" for="task-volunteer">Assign to volunteer</label>
+              <select id="task-volunteer" class="select" title="Assign to volunteer"></select>
+              <button class="btn accent" id="assign-task">Assign</button>
+            </div>
+            <table class="mt-10">
+              <thead><tr><th>Task</th><th>Assignee</th><th>Status</th></tr></thead>
+              <tbody id="task-list"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  <!-- PAGE: Education -->
+  <section id="education-view" class="view tab-view" role="region" aria-labelledby="education-tab">
+      <div class="education-tabs">
+        <div class="education-tab-list">
+          <button class="education-tab active" data-phase="pre">Pre-Disaster</button>
+          <button class="education-tab" data-phase="during">During Disaster</button>
+          <button class="education-tab" data-phase="post">Post-Disaster</button>
+        </div>
+      </div>
+
+      <div class="education-content">
+  <!-- Phase: pre-disaster -->
+        <div class="education-phase active" id="pre-disaster">
+          <div class="grid cols-2">
+            <div class="card">
+              <div class="card-header"><strong>Pre-Disaster Preparation</strong><span class="chip">🎯 Essential</span></div>
+              <div class="card-body">
+                <h4 class="education-heading do">DO's ✅</h4>
+                <ul class="education-list">
+                  <li>Create an emergency kit with water, food, medicines, flashlight, and batteries</li>
+                  <li>Develop a family emergency plan with meeting points and contact numbers</li>
+                  <li>Stay informed about local hazards and warning systems</li>
+                  <li>Strengthen your home structure and secure heavy furniture</li>
+                  <li>Keep important documents in waterproof containers</li>
+                  <li>Learn basic first aid and emergency skills</li>
+                </ul>
+                <h4 class="education-heading dont">DON'Ts ❌</h4>
+                <ul class="education-list">
+                  <li>Don't ignore evacuation orders or warnings</li>
+                  <li>Don't rely solely on others for emergency preparedness</li>
+                  <li>Don't store emergency supplies in hard-to-reach places</li>
+                  <li>Don't forget to include pets in emergency plans</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><strong>Educational Videos</strong><span class="muted">Learning Resources</span></div>
+              <div class="card-body">
+                <div class="video-list">
+                  <div class="video-item">
+                    <video class="video-thumb" controls preload="metadata" muted>
+                      <source src="assets/videos/disastertools.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                      <h5>Emergency Kit Preparation</h5>
+                      <p>Learn how to prepare a comprehensive emergency kit for your family</p>
+                      <span class="video-duration">5:30</span>
+                    </div>
+                  </div>
+                  <div class="video-item">
+                    <video class="video-thumb" controls preload="metadata" muted>
+                      <source src="assets/videos/emergency_planning.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                      <h5>Family Emergency Planning</h5>
+                      <p>Step-by-step guide to create an effective family emergency plan</p>
+                      <span class="video-duration">8:15</span>
+                    </div>
+                  </div>
+                  <div class="video-item">
+                    <video class="video-thumb" controls preload="metadata" muted>
+                      <source src="assets/videos/home_safety_assesment.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                      <h5>Home Safety Assessment</h5>
+                      <p>How to assess and improve your home's disaster preparedness</p>
+                      <span class="video-duration">6:45</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+  <!-- Phase: during-disaster -->
+        <div class="education-phase" id="during-disaster">
+          <div class="grid cols-2">
+            <div class="card">
+              <div class="card-header"><strong>During Disaster Response</strong><span class="chip danger">🚨 Critical</span></div>
+              <div class="card-body">
+                <h4 class="education-heading do">DO's ✅</h4>
+                <ul class="education-list">
+                  <li>Stay calm and follow your emergency plan</li>
+                  <li>Listen to official emergency broadcasts and alerts</li>
+                  <li>Evacuate immediately if ordered by authorities</li>
+                  <li>Take shelter in the safest part of your building</li>
+                  <li>Help others if it's safe to do so</li>
+                  <li>Conserve phone battery and use text messages</li>
+                </ul>
+                <h4 class="education-heading dont">DON'Ts ❌</h4>
+                <ul class="education-list">
+                  <li>Don't panic or make hasty decisions</li>
+                  <li>Don't drive through flooded areas</li>
+                  <li>Don't use elevators during earthquakes</li>
+                  <li>Don't spread unverified information</li>
+                  <li>Don't ignore evacuation orders</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><strong>Response Videos</strong><span class="muted">Crisis Management</span></div>
+              <div class="card-body">
+                <div class="video-list">
+                  <div class="video-item">
+                    <video class="video-thumb" controls preload="metadata" muted>
+                      <source src="assets/videos/earthquake_safety.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                      <h5>Earthquake Safety</h5>
+                      <p>Drop, Cover, and Hold On techniques during earthquakes</p>
+                      <span class="video-duration">4:20</span>
+                    </div>
+                  </div>
+                  <div class="video-item">
+                    <video class="video-thumb" controls preload="metadata" muted>
+                      <source src="assets/videos/flood_response.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                      <h5>Flood Response</h5>
+                      <p>Safe evacuation and shelter techniques during floods</p>
+                      <span class="video-duration">7:10</span>
+                    </div>
+                  </div>
+                  <div class="video-item">
+                    <video class="video-thumb" controls preload="metadata" muted>
+                      <source src="assets/videos/fire_emergency.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                      <h5>Fire Emergency</h5>
+                      <p>Escape routes and fire safety protocols</p>
+                      <span class="video-duration">5:55</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+  <!-- Phase: post-disaster -->
+        <div class="education-phase" id="post-disaster">
+          <div class="grid cols-2">
+            <div class="card">
+              <div class="card-header"><strong>Post-Disaster Recovery</strong><span class="chip ok">🔄 Recovery</span></div>
+              <div class="card-body">
+                <h4 class="education-heading do">DO's ✅</h4>
+                <ul class="education-list">
+                  <li>Check for injuries and provide first aid if trained</li>
+                  <li>Check for structural damage before re-entering buildings</li>
+                  <li>Document damage with photos for insurance claims</li>
+                  <li>Contact family and friends to let them know you're safe</li>
+                  <li>Register with relief organizations if needed</li>
+                  <li>Be patient with recovery processes</li>
+                </ul>
+                <h4 class="education-heading dont">DON'Ts ❌</h4>
+                <ul class="education-list">
+                  <li>Don't enter damaged buildings until cleared by authorities</li>
+                  <li>Don't use candles or open flames if gas leaks suspected</li>
+                  <li>Don't drink contaminated water</li>
+                  <li>Don't drive unless absolutely necessary</li>
+                  <li>Don't be afraid to ask for help</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><strong>Recovery Videos</strong><span class="muted">Rebuilding</span></div>
+              <div class="card-body">
+                <div class="video-list">
+                  <div class="video-item">
+                    <video class="video-thumb" controls preload="metadata" muted>
+                      <source src="assets/videos/damage_assesment.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                      <h5>Damage Assessment</h5>
+                      <p>How to safely assess and document property damage</p>
+                      <span class="video-duration">6:30</span>
+                    </div>
+                  </div>
+                  <div class="video-item">
+                    <video class="video-thumb" controls preload="metadata" muted>
+                      <source src="assets/videos/mental_helth_recovery.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                      <h5>Mental Health Recovery</h5>
+                      <p>Coping with trauma and stress after disasters</p>
+                      <span class="video-duration">9:20</span>
+                    </div>
+                  </div>
+                  <div class="video-item">
+                    <video class="video-thumb" controls preload="metadata" muted>
+                      <source src="assets/videos/community support.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                      <h5>Community Support</h5>
+                      <p>Building stronger, more resilient communities</p>
+                      <span class="video-duration">7:45</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  <!-- PAGE: Donate -->
+    <section id="donate-view" class="view tab-view" role="region" aria-labelledby="donate-tab">
+      <div class="card">
+        <div class="card-header"><strong>Donate</strong><span class="muted">Support disaster relief</span></div>
+        <div class="card-body">
+          <p class="help">Your contribution helps provide shelters, medical aid, food, and logistics to affected communities.</p>
+          <div class="row mt-10">
+            <a class="btn brand" href="https://donate.example.org/disaster" target="_blank" rel="noopener noreferrer">Donate now</a>
+          </div>
+          <p class="muted mt-10">You will be redirected to our secure payment partner.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/app.js" defer></script>
+</body>
+</html>
