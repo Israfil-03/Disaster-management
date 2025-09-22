@@ -1,0 +1,83 @@
+/* Lightweight, government-style landing page */
+:root {
+  --bg: #ffffff;
+  --text: #121212;
+  --muted: #4b5563; /* slate-600 */
+  --border: #e5e7eb; /* gray-200 */
+  /* Vibrant palette */
+  --orange: #f97316;   /* orange-500 */
+  --orange-600: #ea580c;
+  --red: #ef4444;      /* red-500 */
+  --red-600: #dc2626;
+  --cyan: #06b6d4;     /* cyan-500 */
+  --cyan-600: #0891b2;
+  --yellow: #f59e0b;   /* amber-500 */
+  --yellow-600: #d97706;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.wrap { width: min(1100px, 92vw); margin: 0 auto; }
+.skip-link { position: absolute; left: -999px; top: -999px; background: #000; color: #fff; padding: 8px 12px; }
+.skip-link:focus { left: 8px; top: 8px; z-index: 1000; }
+
+.site-header { border-bottom: 1px solid var(--border); background: linear-gradient(90deg, rgba(6,182,212,0.06), rgba(249,115,22,0.06)); }
+.header-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.brand-mark { width: 32px; height: 32px; }
+.brand-text { display: grid; line-height: 1.1; }
+.brand-text .sub { color: var(--muted); font-size: 12px; }
+.nav { display: inline-flex; gap: 12px; align-items: center; }
+.nav-link { color: var(--cyan-600); text-decoration: none; font-weight: 600; }
+.nav-link:hover { text-decoration: underline; }
+
+.btn { display: inline-block; border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px; text-decoration: none; color: var(--text); background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.btn-primary { background: linear-gradient(90deg, var(--orange), var(--cyan)); color: #fff; border-color: transparent; }
+.btn-primary:hover { background: linear-gradient(90deg, var(--orange-600), var(--cyan-600)); }
+
+.main { padding-bottom: 40px; }
+.hero { padding: 36px 0; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(249,115,22,0.08), rgba(6,182,212,0.08)); }
+.hero h1 { margin: 0 0 8px; font-size: clamp(22px, 4.2vw, 32px); }
+.lead { margin: 0 0 14px; color: var(--muted); max-width: 68ch; }
+.cta { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.info { padding: 20px 0 0; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.info-card { border: 1px solid var(--border); padding: 14px; border-radius: 10px; background: #fff; box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
+.info-card h2 { font-size: 16px; margin: 0 0 6px; }
+.info-card p { margin: 0; color: var(--muted); }
+
+/* Features */
+.features { padding: 24px 0 0; }
+.feature { border: 1px solid var(--border); background: #fff; border-radius: 10px; padding: 16px; display: grid; gap: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
+.feature-icon { width: 28px; height: 28px; color: var(--orange); }
+.icon-inline svg { width: 100%; height: 100%; display: block; fill: currentColor; stroke: none; }
+.feature h3 { margin: 2px 0 0; font-size: 16px; }
+.feature p { margin: 0; color: var(--muted); }
+
+/* Impact */
+.impact { padding: 24px 0 0; }
+.section-title { font-size: 18px; margin: 0 0 10px; color: var(--red-600); }
+.impact-stats { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.impact-stats li { border: 1px solid var(--border); background: #fff; border-radius: 10px; padding: 14px; display: grid; gap: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
+.impact-stats strong { font-size: 14px; }
+.impact-stats span { color: var(--muted); font-size: 13px; }
+
+.site-footer { border-top: 1px solid var(--border); background: #f7f9fc; margin-top: 24px; }
+.footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; color: var(--muted); }
+.footer-nav { display: inline-flex; gap: 12px; }
+.footer-nav a { color: var(--orange-600); text-decoration: none; }
+.footer-nav a:hover { text-decoration: underline; }
+
+@media (max-width: 760px) {
+  .grid { grid-template-columns: 1fr; }
+  .impact-stats { grid-template-columns: 1fr; }
+}
