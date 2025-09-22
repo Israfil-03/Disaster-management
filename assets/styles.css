@@ -417,6 +417,31 @@ header{
   box-shadow:0 20px 40px rgba(0,0,0,.35);
 }
 
+/* Featured vs compact cards for Alerts/Report pages */
+.card-featured{
+  display:flex;
+  flex-direction:column;
+  min-height:540px;
+}
+
+.card-featured .card-body{
+  flex:1 1 auto;
+}
+
+.stack > .card-compact{
+  display:flex;
+  flex-direction:column;
+}
+
+.stack > .card-compact .card-body{
+  flex:1 1 auto;
+}
+
+/* Make right column stack items align heights */
+.stack{
+  align-content:start;
+}
+
 .card-header{
   padding:14px 16px;
   border-bottom:1px solid var(--border);
@@ -1043,6 +1068,11 @@ label{
 @media(max-width:768px){
   .grid.cols-2{
     grid-template-columns:1fr;
+  }
+
+  /* So featured cards don't become too tall on small screens */
+  .card-featured{
+    min-height:unset;
   }
 
   .education-content .grid.cols-2{

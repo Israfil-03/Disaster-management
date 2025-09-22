@@ -188,7 +188,7 @@
   <!-- PAGE: Alerts -->
   <section id="alerts-view" class="view tab-view" role="region" aria-labelledby="alerts-tab">
       <div class="grid cols-2">
-        <div class="card">
+        <div class="card card-featured">
           <div class="card-header"><strong>Alert Feed</strong><span class="muted">IMD / NDMA / Crowdsourced</span></div>
           <div class="card-body">
             <div class="banner mb-10" role="status" aria-live="polite">
@@ -217,7 +217,7 @@
         <!-- Right column: broadcast + map stacked -->
         <div class="stack">
           <!-- Broadcast: authority/NDRF only -->
-          <div class="card role-only authority ndrf">
+          <div class="card card-compact role-only authority ndrf">
             <div class="card-header"><strong>Broadcast Alert</strong><span class="muted">Authority only</span></div>
             <div class="card-body">
               <label for="alert-message">Message</label>
@@ -242,7 +242,7 @@
           </div>
 
           <!-- Alerts Map (moved into right column) -->
-          <div class="card">
+          <div class="card card-compact">
             <div class="card-header"><strong>Alerts Map</strong><span class="muted">Geospatial view</span></div>
             <div class="card-body">
               <div class="map-container" role="img" aria-label="Map showing alert locations and impacted areas">
@@ -259,7 +259,7 @@
   <section id="report-view" class="view tab-view" role="region" aria-labelledby="report-tab">
       <div class="grid cols-2">
         <!-- Left: report incident form -->
-        <div class="card">
+        <div class="card card-featured">
           <div class="card-header"><strong>Report Incident</strong><span class="muted">Citizen</span></div>
           <div class="card-body">
             <label for="report-type">Incident type</label>
@@ -299,7 +299,7 @@
         <!-- Right column: verify + map stacked -->
         <div class="stack">
           <!-- Table: verify (#verify-list) -->
-          <div class="card role-only authority ndrf">
+          <div class="card card-compact role-only authority ndrf">
             <div class="card-header"><strong>Verify Reports</strong><span class="muted">Authority/NDRF</span></div>
             <div class="card-body">
               <table>
@@ -310,7 +310,7 @@
           </div>
 
           <!-- Report Map (moved into right column) -->
-          <div class="card">
+          <div class="card card-compact">
             <div class="card-header"><strong>Report Map</strong><span class="muted">Citizen reports</span></div>
             <div class="card-body">
               <div class="map-container" role="img" aria-label="Map showing citizen reports and verification status">
