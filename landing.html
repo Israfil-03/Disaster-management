@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Disaster Management - Welcome</title>
-    <meta name="description" content="Prepare, respond, and recover. Your companion for disaster readiness and community safety." />
+  <meta name="color-scheme" content="light dark" />
+  <title>AadhyaPath — Crisis & Resilience</title>
+  <meta name="description" content="AadhyaPath helps communities prepare, respond, and recover — transparent alerts, clear guidance, and resilient outcomes." />
     <link rel="icon" href="assets/icons/app-mark.svg" type="image/svg+xml" />
   <link rel="preload" as="image" href="assets/icons/hazard-multi.svg" />
     <link rel="stylesheet" href="assets/landing.css" />
@@ -14,16 +15,16 @@
     <header class="site-header">
       <div class="wrap">
         <div class="header-top">
-          <a class="brand" href="landing.html" aria-label="Disaster Management Home">
-            <img src="assets/icons/app-mark.svg" alt="National Emblem" class="brand-mark" />
+          <a class="brand" href="landing.html" aria-label="AadhyaPath Home">
+            <img src="assets/icons/app-mark.svg" alt="National Emblem" class="brand-mark" width="32" height="32" />
             <span class="brand-text">
-              <strong>Disaster Management</strong>
-              <span class="sub">Government Advisory Portal</span>
+              <strong>AadhyaPath</strong>
+              <span class="sub">Community Crisis Response</span>
             </span>
           </a>
           <nav class="nav">
             <a class="nav-link" href="auth.html?mode=login">Login</a>
-            <a class="btn btn-primary" href="auth.html?mode=signup">Register</a>
+            <a class="btn btn-primary" href="auth.html?mode=signup">Get started</a>
           </nav>
         </div>
       </div>
@@ -32,11 +33,11 @@
     <main id="main" class="main">
       <section class="hero">
         <div class="wrap">
-          <h1>National Disaster Preparedness and Response</h1>
-          <p class="lead">Access official advisories, alerts, and guidance to prepare for and respond to emergencies. Stay informed. Stay safe.</p>
+          <h1>Trusted crisis information for every community</h1>
+          <p class="lead">AadhyaPath brings together verified alerts, practical guidance, and local resources so people can make the right decisions when it matters most.</p>
           <div class="cta">
-            <a class="btn btn-primary" href="auth.html?mode=signup">Register</a>
-            <a class="btn" href="auth.html?mode=login">Login</a>
+            <a class="btn btn-primary" href="auth.html?mode=signup">Create your account</a>
+            <a class="btn" href="auth.html?mode=login">I already have an account</a>
           </div>
         </div>
       </section>
@@ -44,31 +45,97 @@
       <section class="info">
         <div class="wrap grid">
           <article class="info-card">
-            <h2>Official Alerts</h2>
-            <p>Receive timely, location‑based alerts from authorised agencies.</p>
+            <h2>Verified alerts</h2>
+            <p>Location-aware updates from IMD, NDMA and local authorities, plus community signals with verification.</p>
+          </article>
+          <article class="info-card">
+            <h2>How it works</h2>
+            <p>We aggregate official data, enrich it with context, and surface simple next steps for people and responders.</p>
           </article>
           <article class="info-card">
             <h2>Preparedness</h2>
-            <p>Household checklists and practical guidance for common hazards.</p>
+            <p>Clear checklists, videos and Do's & Don'ts for floods, cyclones, heatwaves, earthquakes and more.</p>
           </article>
-          <article class="info-card">
-            <h2>Resources</h2>
-            <p>Find shelters, emergency contacts, and local support information.</p>
+        </div>
+      </section>
+
+      <section class="features">
+        <div class="wrap grid">
+          <article class="feature">
+            <div class="feature-icon" data-icon="bell" aria-hidden="true"></div>
+            <h3>Multi-hazard coverage</h3>
+            <p>From rapid-onset events like floods and earthquakes to silent disasters like pollution, land degradation, and sea level rise.</p>
           </article>
+          <article class="feature">
+            <div class="feature-icon" data-icon="map" aria-hidden="true"></div>
+            <h3>Local context</h3>
+            <p>Maps, nearby shelters, and essential resources help you act quickly and safely.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-icon" data-icon="video" aria-hidden="true"></div>
+            <h3>Guidance that’s actionable</h3>
+            <p>Short videos and checklists for what to do before, during, and after crises.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="impact">
+        <div class="wrap">
+          <h2 class="section-title">What we aim to solve</h2>
+          <ul class="impact-stats">
+            <li><strong>Trusted information</strong><span>Reduce confusion with a single, reliable source.</span></li>
+            <li><strong>Faster response</strong><span>Give responders the context they need to prioritize.</span></li>
+            <li><strong>Resilient communities</strong><span>Help people prepare long before disasters strike.</span></li>
+          </ul>
         </div>
       </section>
     </main>
 
     <footer class="site-footer">
       <div class="wrap footer">
-        <p>&copy; <span id="year"></span> Disaster Management Portal</p>
+        <p>&copy; <span id="year"></span> AadhyaPath</p>
         <nav class="footer-nav">
           <a href="auth.html?mode=login">Login</a>
-          <a href="auth.html?mode=signup">Register</a>
+          <a href="auth.html?mode=signup">Get started</a>
         </nav>
       </div>
     </footer>
 
-    <script src="assets/landing.js"></script>
+  <script src="assets/landing.js" defer></script>
+    <script>
+      // Apply icons on landing for feature section
+      (function(){
+        const iconCache = new Map();
+        const key = (n) => `icon:${n}`;
+        function getFromSession(n){
+          try { const v = sessionStorage.getItem(key(n)); if(v === null) return undefined; return v === '' ? null : v; } catch { return undefined; }
+        }
+        function setInSession(n, v){
+          try { sessionStorage.setItem(key(n), v ?? ''); } catch {}
+        }
+        async function loadIcon(name){
+          if(iconCache.has(name)) return iconCache.get(name);
+          const cached = getFromSession(name);
+          if(cached !== undefined){ iconCache.set(name, cached); return cached; }
+          try{
+            const res = await fetch(`assets/icons/${name}.svg`); // allow HTTP cache
+            const txt = res.ok ? await res.text() : null;
+            iconCache.set(name, txt);
+            setInSession(name, txt);
+            return txt;
+          }catch{
+            iconCache.set(name, null); setInSession(name, null); return null;
+          }
+        }
+        async function applyIcons(){
+          const nodes = document.querySelectorAll('[data-icon]');
+          await Promise.all(Array.from(nodes).map(async (el)=>{
+            const svg = await loadIcon(el.getAttribute('data-icon'));
+            if(svg){ el.innerHTML = svg; el.classList.add('icon-inline'); const s = el.querySelector('svg'); s?.removeAttribute('width'); s?.removeAttribute('height'); }
+          }));
+        }
+        applyIcons();
+      })();
+    </script>
   </body>
   </html>

@@ -3,11 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Community Disaster Management</title>
-  <meta name="description" content="Community-centric multiple disaster information, alerts, resources, and coordination dashboard for India." />
+  <meta name="color-scheme" content="light dark" />
+  <title>AadhyaPath — Dashboard</title>
+  <meta name="description" content="AadhyaPath: Community crisis alerts, resources, and coordination for resilient response and recovery." />
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
+  <script>
+    // Simple client-side gate to ensure access only after auth
+    try {
+      const ok = localStorage.getItem('dm_logged_in') === '1';
+      if (!ok) {
+        window.location.replace('auth.html?mode=signup');
+      }
+    } catch {}
+  </script>
   <!-- Skip link -->
   <a href="#app" class="sr-only focusable" id="skip-link">Skip to main content</a>
   <header role="banner">
@@ -16,8 +26,8 @@
   <div class="brand header-brand">
         <div class="logo" aria-hidden="true"><span class="logo-icon" data-icon="app-mark" aria-hidden="true"></span></div>
         <div>
-          <div class="title">DISASTER</div>
-          <div class="tag">Community Disaster Management</div>
+          <div class="title">AadhyaPath</div>
+          <div class="tag">Crisis & Resilience Dashboard</div>
         </div>
       </div>
   <!-- Controls: role/lang/contrast/profile -->
@@ -204,28 +214,42 @@
             </table>
           </div>
         </div>
-  <!-- Broadcast: authority/NDRF only -->
-        <div class="card role-only authority ndrf">
-          <div class="card-header"><strong>Broadcast Alert</strong><span class="muted">Authority only</span></div>
-          <div class="card-body">
-            <label for="alert-message">Message</label>
-            <textarea id="alert-message" class="input" rows="4" placeholder="Enter concise alert with instructions"></textarea>
-            <div class="row">
-              <label class="sr-only" for="alert-hazard">Hazard</label>
-              <select id="alert-hazard" class="select" title="Hazard"></select>
-              <label class="sr-only" for="alert-severity">Severity</label>
-              <select id="alert-severity" class="select">
-                <option>Low</option><option>Medium</option><option>High</option><option>Severe</option>
-              </select>
+        <!-- Right column: broadcast + map stacked -->
+        <div class="stack">
+          <!-- Broadcast: authority/NDRF only -->
+          <div class="card role-only authority ndrf">
+            <div class="card-header"><strong>Broadcast Alert</strong><span class="muted">Authority only</span></div>
+            <div class="card-body">
+              <label for="alert-message">Message</label>
+              <textarea id="alert-message" class="input" rows="4" placeholder="Enter concise alert with instructions"></textarea>
+              <div class="row">
+                <label class="sr-only" for="alert-hazard">Hazard</label>
+                <select id="alert-hazard" class="select" title="Hazard"></select>
+                <label class="sr-only" for="alert-severity">Severity</label>
+                <select id="alert-severity" class="select">
+                  <option>Low</option><option>Medium</option><option>High</option><option>Severe</option>
+                </select>
+              </div>
+              <div class="row mt-8">
+                <label class="sr-only" for="alert-state">State / UT</label>
+                <select id="alert-state" class="select" title="State/UT"></select>
+                <label class="sr-only" for="alert-district">District</label>
+                <select id="alert-district" class="select" title="District"></select>
+                <button class="btn warn" id="send-alert">Send</button>
+              </div>
+              <p class="help">Authority/NDRF can issue geo-targeted alerts for rapid dissemination.</p>
             </div>
-            <div class="row mt-8">
-              <label class="sr-only" for="alert-state">State / UT</label>
-              <select id="alert-state" class="select" title="State/UT"></select>
-              <label class="sr-only" for="alert-district">District</label>
-              <select id="alert-district" class="select" title="District"></select>
-              <button class="btn warn" id="send-alert">Send</button>
+          </div>
+
+          <!-- Alerts Map (moved into right column) -->
+          <div class="card">
+            <div class="card-header"><strong>Alerts Map</strong><span class="muted">Geospatial view</span></div>
+            <div class="card-body">
+              <div class="map-container" role="img" aria-label="Map showing alert locations and impacted areas">
+                <span class="map-placeholder-icon" data-icon="map" aria-hidden="true"></span>
+              </div>
+              <p class="help mt-8">Map placeholder. To be integrated with a map library (e.g., Leaflet) with layers for hazards and impact.</p>
             </div>
-            <p class="help">Authority/NDRF can issue geo-targeted alerts for rapid dissemination.</p>
           </div>
         </div>
       </div>
@@ -234,7 +258,7 @@
   <!-- PAGE: Report -->
   <section id="report-view" class="view tab-view" role="region" aria-labelledby="report-tab">
       <div class="grid cols-2">
-  <!-- Form: report incident -->
+        <!-- Left: report incident form -->
         <div class="card">
           <div class="card-header"><strong>Report Incident</strong><span class="muted">Citizen</span></div>
           <div class="card-body">
@@ -254,6 +278,9 @@
               <option>Heavy Rain</option>
               <option>Fire</option>
               <option>Health</option>
+              <option>Air Pollution</option>
+              <option>Land Degradation</option>
+              <option>Sea Level Rise</option>
             </select>
             <label for="report-description">Description</label>
             <textarea id="report-description" class="input" rows="4" placeholder="What happened, how many affected, urgency..."></textarea>
@@ -269,15 +296,28 @@
             <p class="help">Please provide accurate reports to help responders prioritize and route assistance effectively.</p>
           </div>
         </div>
+        <!-- Right column: verify + map stacked -->
+        <div class="stack">
+          <!-- Table: verify (#verify-list) -->
+          <div class="card role-only authority ndrf">
+            <div class="card-header"><strong>Verify Reports</strong><span class="muted">Authority/NDRF</span></div>
+            <div class="card-body">
+              <table>
+                <thead><tr><th>Time</th><th>Type</th><th>Location</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="verify-list"></tbody>
+              </table>
+            </div>
+          </div>
 
-  <!-- Table: verify (#verify-list) -->
-        <div class="card role-only authority ndrf">
-          <div class="card-header"><strong>Verify Reports</strong><span class="muted">Authority/NDRF</span></div>
-          <div class="card-body">
-            <table>
-              <thead><tr><th>Time</th><th>Type</th><th>Location</th><th>Status</th><th>Action</th></tr></thead>
-              <tbody id="verify-list"></tbody>
-            </table>
+          <!-- Report Map (moved into right column) -->
+          <div class="card">
+            <div class="card-header"><strong>Report Map</strong><span class="muted">Citizen reports</span></div>
+            <div class="card-body">
+              <div class="map-container" role="img" aria-label="Map showing citizen reports and verification status">
+                <span class="map-placeholder-icon" data-icon="map" aria-hidden="true"></span>
+              </div>
+              <p class="help mt-8">Map placeholder. Will show reported incidents and verification status.</p>
+            </div>
           </div>
         </div>
       </div>

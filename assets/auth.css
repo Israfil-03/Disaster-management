@@ -1,12 +1,14 @@
 /* Lightweight, government-style authentication */
 :root {
   --bg: #ffffff;
-  --text: #1a1a1a;
-  --muted: #4a4a4a;
-  --border: #d9d9d9;
-  --blue: #0b5ed7;
-  --blue-600: #0a53be;
-  --error: #cc0000;
+  --text: #111827;      /* slate-900 */
+  --muted: #6b7280;     /* gray-500 */
+  --border: #e5e7eb;    /* gray-200 */
+  --primary-a: #f97316; /* orange-500 */
+  --primary-b: #06b6d4; /* cyan-500 */
+  --primary-a-600: #ea580c;
+  --primary-b-600: #0891b2;
+  --error: #dc2626;     /* red-600 */
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -32,14 +34,15 @@ body {
   width: min(480px, 94vw);
   background: #fff;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.06);
 }
 .tabs { display: grid; grid-auto-flow: column; border-bottom: 1px solid var(--border); }
 .tab {
   appearance: none; background: transparent; color: var(--muted);
   font-weight: 700; border: none; padding: 12px 14px; border-bottom: 2px solid transparent; cursor: pointer;
 }
-.tab[aria-selected="true"] { color: var(--text); border-color: var(--blue); }
+.tab[aria-selected="true"] { color: var(--text); border-color: var(--primary-b); }
 
 .panels { padding: 14px; }
 .panel.hidden { display: none; }
@@ -54,12 +57,12 @@ body {
   border-radius: 6px;
   outline: none;
 }
-.field input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(11,94,215,0.15); }
+.field input:focus { border-color: var(--primary-b); box-shadow: 0 0 0 2px rgba(6,182,212,0.2); }
 .error-msg { color: var(--error); font-size: 13px; margin: 6px 0 0; }
 
-.btn { display: inline-block; border: 1px solid var(--border); padding: 10px 14px; border-radius: 6px; text-decoration: none; color: var(--text); background: #fff; width: 100%; }
-.btn-primary { background: var(--blue); color: #fff; border-color: var(--blue-600); }
-.btn-primary:hover { background: var(--blue-600); }
+.btn { display: inline-block; border: 1px solid var(--border); padding: 10px 14px; border-radius: 8px; text-decoration: none; color: var(--text); background: #fff; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+.btn-primary { background: linear-gradient(90deg, var(--primary-a), var(--primary-b)); color: #fff; border-color: transparent; }
+.btn-primary:hover { background: linear-gradient(90deg, var(--primary-a-600), var(--primary-b-600)); }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
 .legal { text-align: center; max-width: 560px; }

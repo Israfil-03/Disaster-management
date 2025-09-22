@@ -39,7 +39,9 @@ const state = {
 // Hazards we support for filtering and reporting
 // Note: keep this in sync with report-type options for consistency
 const HAZARDS = [
-  'Flood','Cyclone','Heatwave','Cold Wave','Landslide','Earthquake','Thunderstorm','Lightning','Drought','Forest Fire','Tsunami','Heavy Rain','Fire','Health'
+  'Flood','Cyclone','Heatwave','Cold Wave','Landslide','Earthquake','Thunderstorm','Lightning','Drought','Forest Fire','Tsunami','Heavy Rain','Fire','Health',
+  // Silent/slow-onset hazards
+  'Air Pollution','Land Degradation','Sea Level Rise'
 ];
 
 // Indian States/UTs list (full set); districts provided for demo states used in sample alerts
@@ -64,24 +66,29 @@ const filters = {
   district: ''
 };
 
-// Simple in-memory cache for loaded SVGs
+// Simple in-memory + sessionStorage cache for loaded SVGs
 const iconCache = new Map();
+const iconKey = (n)=>`icon:${n}`;
+function iconGetSession(n){ try{ const v=sessionStorage.getItem(iconKey(n)); if(v===null) return undefined; return v===''?null:v; }catch{ return undefined; } }
+function iconSetSession(n, v){ try{ sessionStorage.setItem(iconKey(n), v ?? ''); }catch{} }
 
-// Icons: inline SVG from assets/icons (cached)
+// Icons: inline SVG from assets/icons (cached via HTTP cache + sessionStorage)
 async function loadIcon(name){
   if(iconCache.has(name)) return iconCache.get(name);
-  const srcCandidates = [`assets/icons/${name}.svg`];
-  for(const url of srcCandidates){
-    try{
-      const res = await fetch(url, { cache: 'no-store' });
-      if(!res.ok) continue;
-      const text = await res.text();
-      iconCache.set(name, text);
-      return text;
-    }catch{ /* try next */ }
+  const fromSess = iconGetSession(name);
+  if(fromSess !== undefined){ iconCache.set(name, fromSess); return fromSess; }
+  const url = `assets/icons/${name}.svg`;
+  try{
+    const res = await fetch(url); // allow default caching
+    const text = res.ok ? await res.text() : null;
+    iconCache.set(name, text);
+    iconSetSession(name, text);
+    return text;
+  }catch{
+    iconCache.set(name, null);
+    iconSetSession(name, null);
+    return null;
   }
-  iconCache.set(name, null);
-  return null;
 }
 
 // Apply icons to [data-icon]

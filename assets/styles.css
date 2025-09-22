@@ -391,6 +391,12 @@ header{
   gap:16px
 }
 
+/* vertical stack utility for right-column grouping */
+.stack{
+  display: grid;
+  gap: 16px;
+}
+
 @media(min-width:700px){ 
   .cards, .card-grid{
     grid-template-columns:repeat(2,1fr)
