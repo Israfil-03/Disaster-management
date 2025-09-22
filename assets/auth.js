@@ -7,19 +7,30 @@
   const signupPanel = $('#panel-signup');
 
   function setMode(mode) {
-    const isSignup = mode === 'signup';
+    const m = (mode || '').toString().toLowerCase();
+    const isSignup = m === 'signup';
     loginTab.setAttribute('aria-selected', String(!isSignup));
     signupTab.setAttribute('aria-selected', String(isSignup));
     loginPanel.classList.toggle('hidden', isSignup);
     signupPanel.classList.toggle('hidden', !isSignup);
-    const url = new URL(window.location.href);
-    url.searchParams.set('mode', isSignup ? 'signup' : 'login');
-    window.history.replaceState({}, '', url);
+    // Update URL only if mode differs to avoid unnecessary history churn
+    try {
+      const url = new URL(window.location.href);
+      const current = (url.searchParams.get('mode') || '').toLowerCase();
+      const desired = isSignup ? 'signup' : 'login';
+      if (current !== desired) {
+        url.searchParams.set('mode', desired);
+        window.history.replaceState({}, '', url);
+      }
+    } catch {}
   }
 
   // Initialize from URL
   const params = new URLSearchParams(window.location.search);
-  setMode(params.get('mode') === 'signup' ? 'signup' : 'login');
+  const initialMode = (params.get('mode') || 'login').toLowerCase() === 'signup' ? 'signup' : 'login';
+  setMode(initialMode);
+  // Reveal UI after initial mode is applied to prevent flicker
+  document.querySelector('.auth-card')?.classList.remove('js-init-hide');
 
   // Tab clicks
   loginTab.addEventListener('click', () => setMode('login'));
@@ -35,7 +46,7 @@
     if (!email || !pwd) return;
     // TODO: integrate real auth later
     localStorage.setItem('dm_logged_in', '1');
-    window.location.href = 'index.html';
+  window.location.href = 'AadhyaPath_dashboard.html';
   });
 
   signupPanel.addEventListener('submit', (e) => {
@@ -51,6 +62,6 @@
     }
     // TODO: integrate real signup later
     localStorage.setItem('dm_logged_in', '1');
-    window.location.href = 'index.html';
+  window.location.href = 'AadhyaPath_dashboard.html';
   });
 })();
