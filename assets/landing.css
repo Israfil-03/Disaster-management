@@ -48,6 +48,34 @@ body {
 .info-card h2 { font-size: 16px; margin: 0 0 6px; }
 .info-card p { margin: 0; color: var(--muted); }
 
+/* Achievements section */
+.achievements { padding: 40px 0; background: #f7f9fc; border-top: 1px solid var(--border); }
+.achievements h2 { text-align: center; margin: 0 0 30px; font-size: 24px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; text-align: center; }
+.stat-item { background: #fff; padding: 20px; border-radius: 8px; border: 1px solid var(--border); }
+.stat-number { font-size: 28px; font-weight: bold; color: var(--blue); margin-bottom: 4px; }
+.stat-label { color: var(--muted); font-size: 14px; }
+
+/* How it works section */
+.how-it-works { padding: 40px 0; }
+.how-it-works h2 { text-align: center; margin: 0 0 30px; font-size: 24px; }
+.steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.step { text-align: center; padding: 20px; }
+.step-number { 
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center; 
+  width: 40px; 
+  height: 40px; 
+  background: var(--blue); 
+  color: #fff; 
+  border-radius: 50%; 
+  font-weight: bold; 
+  margin-bottom: 12px; 
+}
+.step h3 { margin: 0 0 8px; font-size: 16px; }
+.step p { margin: 0; color: var(--muted); font-size: 14px; }
+
 .site-footer { border-top: 1px solid var(--border); background: #f7f9fc; margin-top: 24px; }
 .footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; color: var(--muted); }
 .footer-nav { display: inline-flex; gap: 12px; }
@@ -56,4 +84,10 @@ body {
 
 @media (max-width: 760px) {
   .grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .steps-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
 }

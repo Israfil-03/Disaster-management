@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Community Disaster Management</title>
-  <meta name="description" content="Community-centric multiple disaster information, alerts, resources, and coordination dashboard for India." />
+  <title>AadhyaPath - Community Dashboard</title>
+  <meta name="description" content="AadhyaPath community-centric multiple disaster information, alerts, resources, and coordination dashboard." />
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
@@ -16,8 +16,8 @@
   <div class="brand header-brand">
         <div class="logo" aria-hidden="true"><span class="logo-icon" data-icon="app-mark" aria-hidden="true"></span></div>
         <div>
-          <div class="title">DISASTER</div>
-          <div class="tag">Community Disaster Management</div>
+          <div class="title">AADHYAPATH</div>
+          <div class="tag">Leading the Path to Safety</div>
         </div>
       </div>
   <!-- Controls: role/lang/contrast/profile -->
@@ -177,7 +177,7 @@
 
   <!-- PAGE: Alerts -->
   <section id="alerts-view" class="view tab-view" role="region" aria-labelledby="alerts-tab">
-      <div class="grid cols-2">
+      <div class="grid cols-3">
         <div class="card">
           <div class="card-header"><strong>Alert Feed</strong><span class="muted">IMD / NDMA / Crowdsourced</span></div>
           <div class="card-body">
@@ -204,6 +204,29 @@
             </table>
           </div>
         </div>
+        
+        <!-- Map Section for Alerts -->
+        <div class="card">
+          <div class="card-header"><strong>Alert Locations</strong><span class="muted">Interactive Map</span></div>
+          <div class="card-body">
+            <div class="alerts-map-container" role="img" aria-label="Map showing alert locations">
+              <div class="map-placeholder" style="height: 300px; background: #f0f8ff; border: 2px dashed #007bff; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <span class="map-icon" style="font-size: 48px;">🗺️</span>
+                <p style="margin: 10px 0; text-align: center; color: #666;">Interactive Alert Map</p>
+                <p style="margin: 0; font-size: 12px; color: #888;">Real-time visualization of alert locations</p>
+                <div class="alert-map-legend" style="margin-top: 15px; font-size: 12px;">
+                  <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                    <span style="color: #dc3545;">🔴 High Priority</span>
+                    <span style="color: #fd7e14;">🟡 Medium</span>
+                    <span style="color: #28a745;">🟢 Low</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="help mt-8">Click on markers to view alert details and affected areas.</p>
+          </div>
+        </div>
+
   <!-- Broadcast: authority/NDRF only -->
         <div class="card role-only authority ndrf">
           <div class="card-header"><strong>Broadcast Alert</strong><span class="muted">Authority only</span></div>
@@ -233,7 +256,7 @@
 
   <!-- PAGE: Report -->
   <section id="report-view" class="view tab-view" role="region" aria-labelledby="report-tab">
-      <div class="grid cols-2">
+      <div class="grid cols-3">
   <!-- Form: report incident -->
         <div class="card">
           <div class="card-header"><strong>Report Incident</strong><span class="muted">Citizen</span></div>
@@ -254,6 +277,14 @@
               <option>Heavy Rain</option>
               <option>Fire</option>
               <option>Health</option>
+              <option>Air Pollution</option>
+              <option>Water Pollution</option>
+              <option>Medical Emergency</option>
+              <option>Infrastructure Failure</option>
+              <option>Chemical Spill</option>
+              <option>Noise Pollution</option>
+              <option>Industrial Accident</option>
+              <option>Public Health Crisis</option>
             </select>
             <label for="report-description">Description</label>
             <textarea id="report-description" class="input" rows="4" placeholder="What happened, how many affected, urgency..."></textarea>
@@ -267,6 +298,28 @@
               <span id="report-message" class="muted" role="status" aria-live="polite"></span>
             </div>
             <p class="help">Please provide accurate reports to help responders prioritize and route assistance effectively.</p>
+          </div>
+        </div>
+
+        <!-- Map Section for Reports -->
+        <div class="card">
+          <div class="card-header"><strong>Report Locations</strong><span class="muted">Interactive Map</span></div>
+          <div class="card-body">
+            <div class="reports-map-container" role="img" aria-label="Map showing report locations">
+              <div class="map-placeholder" style="height: 300px; background: #f8f9fa; border: 2px dashed #28a745; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <span class="map-icon" style="font-size: 48px;">📍</span>
+                <p style="margin: 10px 0; text-align: center; color: #666;">Incident Report Map</p>
+                <p style="margin: 0; font-size: 12px; color: #888;">Click on map to set incident location</p>
+                <div class="report-map-legend" style="margin-top: 15px; font-size: 12px;">
+                  <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                    <span style="color: #dc3545;">🔴 Verified</span>
+                    <span style="color: #ffc107;">🟡 Pending</span>
+                    <span style="color: #6c757d;">⚫ Rejected</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="help mt-8">Click on the map to pinpoint the exact location of the incident.</p>
           </div>
         </div>
 

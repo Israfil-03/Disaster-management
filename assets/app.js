@@ -2,6 +2,11 @@
 const $ = (q) => document.querySelector(q);
 const $$ = (q) => Array.from(document.querySelectorAll(q));
 
+// Check authentication - redirect to landing if not logged in
+if (!localStorage.getItem('aadhyapath_logged_in')) {
+  window.location.href = 'landing.html';
+}
+
 
 const state = {
   role: 'citizen',
@@ -11,12 +16,17 @@ const state = {
   alerts: [
     {time:'14:05', hazard:'Heavy Rain', sev:'High', msg:'Red alert: Heavy rainfall expected next 12h', state:'Kerala', district:'Alappuzha', area:'Alappuzha, Kerala'},
     {time:'13:40', hazard:'Flood', sev:'Medium', msg:'River level rising, avoid low-lying zones', state:'Bihar', district:'Saharsa', area:'Saharsa, Bihar'},
-    {time:'13:10', hazard:'Heatwave', sev:'Low', msg:'Heat advisory lifted for today', state:'Maharashtra', district:'Nagpur', area:'Nagpur, Maharashtra'}
+    {time:'13:10', hazard:'Heatwave', sev:'Low', msg:'Heat advisory lifted for today', state:'Maharashtra', district:'Nagpur', area:'Nagpur, Maharashtra'},
+    {time:'12:45', hazard:'Air Pollution', sev:'High', msg:'AQI levels critical: Stay indoors, use masks outdoors', state:'Delhi', district:'New Delhi', area:'New Delhi, Delhi'},
+    {time:'12:20', hazard:'Medical Emergency', sev:'Medium', msg:'Dengue outbreak reported: Prevent water stagnation', state:'Karnataka', district:'Bangalore', area:'Bangalore, Karnataka'},
+    {time:'11:55', hazard:'Infrastructure Failure', sev:'Low', msg:'Power grid maintenance scheduled 2-6 PM', state:'Gujarat', district:'Ahmedabad', area:'Ahmedabad, Gujarat'}
   ],
   verifyQueue: [
     {time:'14:00', type:'Flood', loc:'Khagaria – Rampur', status:'Pending'},
     {time:'13:20', type:'Landslide', loc:'Mandi – Pandoh', status:'Pending'},
-    {time:'12:50', type:'Health', loc:'Kolkata – Rajarhat', status:'Pending'}
+    {time:'12:50', type:'Medical Emergency', loc:'Kolkata – Rajarhat', status:'Pending'},
+    {time:'12:30', type:'Air Pollution', loc:'Mumbai – Bandra', status:'Pending'},
+    {time:'11:45', type:'Chemical Spill', loc:'Chennai – Ennore', status:'Pending'}
   ],
   shelters: [
     {name:'Govt School Hall', cap:150, avail:95, contact:'080-123456'},
@@ -39,7 +49,8 @@ const state = {
 // Hazards we support for filtering and reporting
 // Note: keep this in sync with report-type options for consistency
 const HAZARDS = [
-  'Flood','Cyclone','Heatwave','Cold Wave','Landslide','Earthquake','Thunderstorm','Lightning','Drought','Forest Fire','Tsunami','Heavy Rain','Fire','Health'
+  'Flood','Cyclone','Heatwave','Cold Wave','Landslide','Earthquake','Thunderstorm','Lightning','Drought','Forest Fire','Tsunami','Heavy Rain','Fire','Health',
+  'Air Pollution','Water Pollution','Medical Emergency','Infrastructure Failure','Chemical Spill','Noise Pollution','Industrial Accident','Public Health Crisis'
 ];
 
 // Indian States/UTs list (full set); districts provided for demo states used in sample alerts

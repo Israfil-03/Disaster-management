@@ -34,7 +34,8 @@
     const pwd = /** @type {HTMLInputElement} */(document.getElementById('login-password')).value;
     if (!email || !pwd) return;
     // TODO: integrate real auth later
-    localStorage.setItem('dm_logged_in', '1');
+    localStorage.setItem('aadhyapath_logged_in', '1');
+    localStorage.setItem('aadhyapath_user_email', email);
     window.location.href = 'index.html';
   });
 
@@ -50,7 +51,9 @@
       return;
     }
     // TODO: integrate real signup later
-    localStorage.setItem('dm_logged_in', '1');
+    localStorage.setItem('aadhyapath_logged_in', '1');
+    localStorage.setItem('aadhyapath_user_email', email);
+    localStorage.setItem('aadhyapath_user_name', name);
     window.location.href = 'index.html';
   });
 })();

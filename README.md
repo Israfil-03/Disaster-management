@@ -1,10 +1,10 @@
-# Disaster Management (PWA)
+# AadhyaPath - Leading the Path to Safety
 
-A simple, single‑page web app for community disaster management: view alerts, report incidents, find nearby resources, coordinate volunteers, and learn do's & don'ts.
+A comprehensive disaster management platform for community preparedness, response, and recovery. Handle multiple disaster types including natural calamities and silent disasters like pollution and medical emergencies.
 
 ## Quick start
 
-- Open `landing.html` in your browser for the new first‑time experience, or serve locally:
+- Open `landing.html` in your browser to start, or serve locally:
 
 ```powershell
 # Using Node.js
@@ -14,31 +14,37 @@ npx serve .
 python -m http.server 8000
 ```
 
-Then visit `http://localhost:8000`.
+Then visit `http://localhost:8000/landing.html`.
 
-Entry and auth flow
-- Start at `landing.html` (welcome page)
-- Click `Get Started` to go to `auth.html?mode=signup` or `Log In` to go to `auth.html?mode=login`
-- After mock login/signup, you will be redirected to `index.html` (dashboard)
+## Authentication Flow
 
+Users must follow the proper authentication flow:
+1. Start at the landing page (`landing.html`)
+2. Register or login through the authentication page (`auth.html`)
+3. Access the dashboard (`index.html`) only after authentication
 
+Direct access to the dashboard is prevented for security.
 
 ## Features
 
-- Multi-hazard alerts and filters
-- Incident reporting and verification (demo data)
-- Shelters/resources and basic mapping placeholder
-- Volunteers and task assignment (demo)
-- Do's & Don'ts with short videos
+- **Comprehensive Alert System**: Multi-hazard alerts including silent disasters (pollution, medical emergencies, infrastructure failures)
+- **Interactive Maps**: Visual representation of alert locations and incident reports
+- **Incident reporting and verification**: Community-driven reporting with authority verification
+- **Shelter and resource mapping**: Find nearby resources and emergency facilities
+- **Volunteer coordination**: Task assignment and volunteer management
+- **Educational Resources**: Do's & Don'ts with instructional videos
+- **Multi-language support**: Available in 10+ Indian languages
 
 ## Project structure
 
-- `index.html` – main UI
-- `landing.html` – landing page (first visit)
-- `auth.html` – login/signup page
-- `assets/styles.css` – styles
-- `assets/app.js` – app logic and demo data
-- `assets/landing.css`, `assets/landing.js` – landing styles and minimal interactions
-- `assets/auth.css`, `assets/auth.js` – authentication styles and minimal interactions
-- `assets/icons/`, `assets/videos/`, `assets/images/` – assets
+- `landing.html` – informative landing page with achievements and features
+- `auth.html` – authentication (login/signup) page
+- `index.html` – main dashboard UI
+- `assets/landing.css` – landing page styles
+- `assets/auth.css` – authentication page styles
+- `assets/styles.css` – main dashboard styles
+- `assets/app.js` – dashboard logic and demo data
+- `assets/auth.js` – authentication logic
+- `assets/landing.js` – landing page logic
+- `assets/icons/`, `assets/videos/`, `assets/images/` – static assets
 
