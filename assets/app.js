@@ -6,6 +6,7 @@ const $$ = (q) => Array.from(document.querySelectorAll(q));
 const state = {
   role: 'citizen',
   lang: 'en',
+  theme: undefined, // 'light' | 'dark' | undefined (system)
   // Alerts include hazard + region fields for filtering
   alerts: [
     {time:'14:05', hazard:'Heavy Rain', sev:'High', msg:'Red alert: Heavy rainfall expected next 12h', state:'Kerala', district:'Alappuzha', area:'Alappuzha, Kerala'},
@@ -402,9 +403,37 @@ function loadPrefs(){
   try{ return JSON.parse(localStorage.getItem('prefs')||'{}'); }catch{ return {}; }
 }
 function savePrefs(){
-  const prefs = { role: state.role, lang: state.lang, contrast: document.body.classList.contains('contrast') };
+  const prefs = { role: state.role, lang: state.lang, contrast: document.body.classList.contains('contrast'), theme: state.theme };
   localStorage.setItem('prefs', JSON.stringify(prefs));
 }
+
+// Theme management
+function applyTheme(theme){
+  const root = document.documentElement; // <html>
+  // Clean slate
+  root.classList.remove('theme-light','theme-dark');
+  if(theme === 'light'){
+    root.classList.add('theme-light');
+  } else if(theme === 'dark'){
+    root.classList.add('theme-dark');
+  }
+  // Reflect in toggle control
+  const btn = document.getElementById('theme-toggle');
+  if(btn){
+    const isLight = theme === 'light';
+    btn.setAttribute('aria-pressed', String(isLight));
+    btn.title = `Switch to ${isLight ? 'dark' : 'light'} theme`;
+    btn.setAttribute('aria-label', `Toggle color theme (current: ${isLight ? 'light' : 'dark'})`);
+  }
+}
+
+// Toggle between light and dark explicitly (ignoring system after first toggle)
+document.getElementById('theme-toggle')?.addEventListener('click', ()=>{
+  const next = state.theme === 'light' ? 'dark' : 'light';
+  state.theme = next;
+  applyTheme(state.theme);
+  savePrefs();
+});
 
 $('#role-select').addEventListener('change', (e)=>{ 
   state.role = e.target.value; 
@@ -549,6 +578,24 @@ document.addEventListener('DOMContentLoaded', function() {
   const prefs = loadPrefs();
   if(prefs.role){ state.role = prefs.role; const rs=$('#role-select'); if(rs) rs.value = prefs.role; }
   if(prefs.lang){ state.lang = prefs.lang; const ls=$('#lang-select'); if(ls) ls.value = prefs.lang; }
+  // Theme: prefer saved; else follow system
+  const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+  if(prefs.theme === 'light' || prefs.theme === 'dark'){
+    state.theme = prefs.theme;
+  } else {
+    state.theme = mq && mq.matches ? 'dark' : 'light';
+  }
+  applyTheme(state.theme);
+  // If user never chose a theme, we can update on system changes dynamically
+  if(!(prefs.theme === 'light' || prefs.theme === 'dark') && mq && typeof mq.addEventListener === 'function'){
+    mq.addEventListener('change', (e)=>{
+      // Only react if user hasn't set explicit theme later
+      const saved = loadPrefs();
+      if(saved.theme === 'light' || saved.theme === 'dark') return;
+      state.theme = e.matches ? 'dark' : 'light';
+      applyTheme(state.theme);
+    });
+  }
   if(prefs.contrast){ document.body.classList.add('contrast'); const ct=$('#contrast-toggle'); ct?.setAttribute('aria-pressed','true'); const hc=$('#high-contrast'); if(hc) hc.checked = true; }
   renderRoleBadge();
   renderStats();
