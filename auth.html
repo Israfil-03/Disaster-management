@@ -7,15 +7,19 @@
   <title>Account • AadhyaPath</title>
     <link rel="icon" href="assets/icons/app-mark.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="assets/auth.css" />
+    <style>
+      /* Hide auth card until JS applies the correct tab (prevents login↔signup flicker) */
+      .js-init-hide { visibility: hidden; }
+    </style>
   </head>
   <body>
     <main class="auth-shell">
-      <a class="brand" href="landing.html" aria-label="Back to landing">
+  <a class="brand" href="index.html" aria-label="Back to landing">
         <img src="assets/icons/app-mark.svg" alt="App mark" width="28" height="28" />
         <span>AadhyaPath</span>
       </a>
 
-      <section class="auth-card" aria-labelledby="auth-title">
+  <section class="auth-card js-init-hide" aria-labelledby="auth-title">
         <header class="tabs" role="tablist">
           <button id="tab-login" role="tab" aria-controls="panel-login" aria-selected="true" class="tab">Log In</button>
           <button id="tab-signup" role="tab" aria-controls="panel-signup" aria-selected="false" class="tab">Sign Up</button>

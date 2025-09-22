@@ -4,7 +4,7 @@ A single‑page crisis information and resilience app: view alerts, report incid
 
 ## Quick start
 
-- Open `landing.html` in your browser for the new first‑time experience, or serve locally:
+- Open `index.html` in your browser for the new first‑time experience (landing), or serve locally:
 
 ```powershell
 # Using Node.js
@@ -17,9 +17,9 @@ python -m http.server 8000
 Then visit `http://localhost:8000`.
 
 Entry and auth flow
-- Start at `landing.html` (informational landing)
+- Start at `index.html` (informational landing)
 - Choose `Create your account` to go to `auth.html?mode=signup` or `I already have an account` to go to `auth.html?mode=login`
-- After signup/login, you will be redirected to `index.html` (dashboard). Direct access to the dashboard is gated.
+- After signup/login, you will be redirected to `AadhyaPath_dashboard.html` (dashboard). Direct access to the dashboard is gated.
 
 
 
@@ -33,8 +33,8 @@ Entry and auth flow
 
 ## Project structure
 
-- `index.html` – main UI (Dashboard)
-- `landing.html` – landing page (first visit)
+- `index.html` – landing page (first visit)
+- `AadhyaPath_dashboard.html` – main UI (Dashboard)
 - `auth.html` – login/signup page
 - `assets/styles.css` – styles
 - `assets/app.js` – app logic and demo data
