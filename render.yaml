@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: aadhyapath-api
+    env: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set DATABASE_URL in Render dashboard or connect a managed Postgres
+      # - key: DATABASE_URL
+      #   sync: false

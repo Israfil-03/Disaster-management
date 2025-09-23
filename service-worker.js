@@ -18,6 +18,7 @@ const PRECACHE_URLS = [
   'assets/landing.js',
   'assets/auth.css',
   'assets/auth.js',
+  'assets/config.js',
   'assets/styles.css',
   'assets/app.js',
   'assets/i18n.js',

@@ -38,18 +38,34 @@
   $('#link-to-signup')?.addEventListener('click', (e) => { e.preventDefault(); setMode('signup'); });
   $('#link-to-login')?.addEventListener('click', (e) => { e.preventDefault(); setMode('login'); });
 
-  // Mock validation and redirect to dashboard
-  loginPanel.addEventListener('submit', (e) => {
+  // Real validation with backend and redirect to dashboard on success
+  loginPanel.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = /** @type {HTMLInputElement} */(document.getElementById('login-email')).value.trim();
     const pwd = /** @type {HTMLInputElement} */(document.getElementById('login-password')).value;
     if (!email || !pwd) return;
-    // TODO: integrate real auth later
-    localStorage.setItem('dm_logged_in', '1');
-  window.location.href = 'AadhyaPath_dashboard.html';
+    try {
+      const base = (window.API_BASE || '').trim();
+      const url = (base ? base : '') + '/api/auth/login';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pwd })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data?.error || 'Login failed');
+        return;
+      }
+      localStorage.setItem('dm_logged_in', '1');
+      localStorage.setItem('dm_user', JSON.stringify(data.user || {}));
+      window.location.href = 'AadhyaPath_dashboard.html';
+    } catch (err) {
+      alert('Network error while logging in. Ensure the server is running.');
+    }
   });
 
-  signupPanel.addEventListener('submit', (e) => {
+  signupPanel.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = /** @type {HTMLInputElement} */(document.getElementById('signup-name')).value.trim();
     const email = /** @type {HTMLInputElement} */(document.getElementById('signup-email')).value.trim();
@@ -60,8 +76,24 @@
       alert('Passwords do not match.');
       return;
     }
-    // TODO: integrate real signup later
-    localStorage.setItem('dm_logged_in', '1');
-  window.location.href = 'AadhyaPath_dashboard.html';
+    try {
+      const base = (window.API_BASE || '').trim();
+      const url = (base ? base : '') + '/api/auth/signup';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password: pwd })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data?.error || 'Sign up failed');
+        return;
+      }
+      localStorage.setItem('dm_logged_in', '1');
+      localStorage.setItem('dm_user', JSON.stringify(data.user || {}));
+      window.location.href = 'AadhyaPath_dashboard.html';
+    } catch (err) {
+      alert('Network error while signing up. Ensure the server is running.');
+    }
   });
 })();

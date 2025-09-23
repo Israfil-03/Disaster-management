@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0b1320" />
+    <!-- Set your hosted API base URL for production (GitHub Pages). Example: https://aadhyapath-api.onrender.com -->
+    <meta name="api-base" content="https://your-backend.example.com" />
   <title data-i18n="title.auth">Account • AadhyaPath</title>
       <link rel="icon" href="assets/icons/app-mark.svg" type="image/svg+xml" />
       <link rel="apple-touch-icon" href="assets/icons/app-mark-192.png" sizes="192x192" />
@@ -70,7 +72,8 @@
       <p class="legal muted" data-i18n="auth.legal">By continuing, you agree to our Terms and acknowledge our Privacy Policy.</p>
     </main>
 
-    <script src="assets/auth.js"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/auth.js"></script>
     <script src="assets/i18n.js"></script>
     <script>
       if ('serviceWorker' in navigator) {
