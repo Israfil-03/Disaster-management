@@ -4,9 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#0b1320" />
   <title>AadhyaPath — Crisis & Resilience</title>
   <meta name="description" content="AadhyaPath helps communities prepare, respond, and recover — transparent alerts, clear guidance, and resilient outcomes." />
-    <link rel="icon" href="assets/icons/app-mark.svg" type="image/svg+xml" />
+  <link rel="icon" href="assets/icons/app-mark.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/icons/app-mark-192.png" sizes="192x192" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="preload" as="image" href="assets/icons/hazard-multi.svg" />
     <link rel="stylesheet" href="assets/landing.css" />
   </head>
@@ -102,6 +105,14 @@
     </footer>
 
   <script src="assets/landing.js" defer></script>
+  <script>
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+      });
+    }
+  </script>
     <script>
       // Apply icons on landing for feature section
       (function(){

@@ -42,3 +42,14 @@ Entry and auth flow
 - `assets/auth.css`, `assets/auth.js` – authentication styles and minimal interactions
 - `assets/icons/`, `assets/videos/`, `assets/images/` – assets
 
+
+## PWA (Installable, offline)
+
+- We ship a `manifest.webmanifest` and `service-worker.js` with precache + runtime caching.
+- To test installability, serve over `https://` or `http://localhost` and open DevTools → Application → Manifest.
+- Offline: disconnect the network and reload — the Offline page will appear for navigations and cached pages/assets will still load.
+
+Notes
+- Map tiles from OpenStreetMap and Leaflet CDN are cached with a stale‑while‑revalidate strategy when online; they may not be available on a cold offline start if not previously viewed.
+- Large videos are streamed (Range requests) and not aggressively cached to avoid storage bloat.
+

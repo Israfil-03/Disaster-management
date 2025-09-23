@@ -4,8 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#0b1320" />
   <title>Account • AadhyaPath</title>
-    <link rel="icon" href="assets/icons/app-mark.svg" type="image/svg+xml" />
+      <link rel="icon" href="assets/icons/app-mark.svg" type="image/svg+xml" />
+      <link rel="apple-touch-icon" href="assets/icons/app-mark-192.png" sizes="192x192" />
+      <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="assets/auth.css" />
     <style>
       /* Hide auth card until JS applies the correct tab (prevents login↔signup flicker) */
@@ -68,5 +71,12 @@
     </main>
 
     <script src="assets/auth.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+        });
+      }
+    </script>
   </body>
   </html>
