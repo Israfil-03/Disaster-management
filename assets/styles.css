@@ -668,10 +668,12 @@ label{
 }
 
 .map-container{
-  height:300px;
+  height:420px;
   border:1px dashed var(--border);
   border-radius:12px;
-  background:repeating-linear-gradient(45deg,color-mix(in srgb, var(--bg) 92%, #000),color-mix(in srgb, var(--bg) 92%, #000) 10px,color-mix(in srgb, var(--bg) 86%, #000) 10px,color-mix(in srgb, var(--bg) 86%, #000) 20px)
+  background:repeating-linear-gradient(45deg,color-mix(in srgb, var(--bg) 92%, #000),color-mix(in srgb, var(--bg) 92%, #000) 10px,color-mix(in srgb, var(--bg) 86%, #000) 10px,color-mix(in srgb, var(--bg) 86%, #000) 20px);
+  /* Leaflet map will replace background when initialized */
+  overflow: hidden;
 }
 
 /* Resources Map Styles */
@@ -745,6 +747,32 @@ label{
 .legend-color.emergency{
   background:var(--warn);
   border-color:var(--warn);
+}
+
+/* Leaflet adjustments (theme-friendly) */
+.leaflet-container{
+  width: 100%;
+  height: 100%;
+  background: var(--panel);
+  border-radius: 12px;
+}
+.leaflet-control-container .leaflet-control{
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+}
+.leaflet-control-attribution{
+  background: color-mix(in srgb, var(--panel) 85%, transparent) !important;
+  color: var(--sub) !important;
+}
+
+/* Responsive map heights */
+@media(max-width: 768px){
+  .map-container{ height: 320px; }
+}
+@media(min-width: 1200px){
+  .map-container{ height: 520px; }
 }
 
 /* Education Page Styles */

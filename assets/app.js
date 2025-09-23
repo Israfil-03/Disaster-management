@@ -9,9 +9,10 @@ const state = {
   theme: undefined, // 'light' | 'dark' | undefined (system)
   // Alerts include hazard + region fields for filtering
   alerts: [
-    {time:'14:05', hazard:'Heavy Rain', sev:'High', msg:'Red alert: Heavy rainfall expected next 12h', state:'Kerala', district:'Alappuzha', area:'Alappuzha, Kerala'},
-    {time:'13:40', hazard:'Flood', sev:'Medium', msg:'River level rising, avoid low-lying zones', state:'Bihar', district:'Saharsa', area:'Saharsa, Bihar'},
-    {time:'13:10', hazard:'Heatwave', sev:'Low', msg:'Heat advisory lifted for today', state:'Maharashtra', district:'Nagpur', area:'Nagpur, Maharashtra'}
+    // Demo entries include approximate coordinates for mapping
+    {time:'14:05', hazard:'Heavy Rain', sev:'High', msg:'Red alert: Heavy rainfall expected next 12h', state:'Kerala', district:'Alappuzha', area:'Alappuzha, Kerala', lat:9.4981, lng:76.3388},
+    {time:'13:40', hazard:'Flood', sev:'Medium', msg:'River level rising, avoid low-lying zones', state:'Bihar', district:'Saharsa', area:'Saharsa, Bihar', lat:25.8793, lng:86.5961},
+    {time:'13:10', hazard:'Heatwave', sev:'Low', msg:'Heat advisory lifted for today', state:'Maharashtra', district:'Nagpur', area:'Nagpur, Maharashtra', lat:21.1458, lng:79.0882}
   ],
   verifyQueue: [
     {time:'14:00', type:'Flood', loc:'Khagaria – Rampur', status:'Pending'},
@@ -113,6 +114,117 @@ async function applyIcons(root=document){
   }));
 }
 
+// =======================
+// Maps (Leaflet)
+// =======================
+let maps = { alerts: null, reports: null, risk: null, resources: null };
+let layers = { alerts: null, reports: null, shelters: null };
+let clusters = { alerts: null };
+// Track a per-map "you are here" marker so we can update instead of duplicating
+let myLocationMarkers = { alerts: null, reports: null, risk: null, resources: null };
+// Track per-map live watch and whether we've centered once
+let myLocationWatchIds = { alerts: null, reports: null, risk: null, resources: null };
+let myLocationCentered = { alerts: false, reports: false, risk: false, resources: false };
+
+function initMaps(){
+  // Only init if Leaflet is loaded and containers exist
+  if(typeof L === 'undefined') return;
+  const alertsEl = document.getElementById('alerts-map');
+  const reportEl = document.getElementById('report-map');
+  const riskEl = document.getElementById('risk-map');
+  const resourcesEl = document.getElementById('resources-map');
+
+  const defaultCenter = [20.5937, 78.9629]; // India centroid
+  const defaultZoom = 5;
+
+  const make = (el) => {
+    if(!el) return null;
+    const m = L.map(el, { attributionControl: true, zoomControl: true }).setView(defaultCenter, defaultZoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(m);
+    return m;
+  };
+
+  if(alertsEl && !maps.alerts) maps.alerts = make(alertsEl);
+  if(reportEl && !maps.reports) maps.reports = make(reportEl);
+  if(riskEl && !maps.risk) maps.risk = make(riskEl);
+  if(resourcesEl && !maps.resources) maps.resources = make(resourcesEl);
+
+  // Alerts layer: prefer clustering if plugin exists
+  if(maps.alerts && !layers.alerts){
+    if(typeof L.markerClusterGroup === 'function'){
+      clusters.alerts = L.markerClusterGroup({
+        disableClusteringAtZoom: 10,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false
+      }).addTo(maps.alerts);
+    } else {
+      layers.alerts = L.layerGroup().addTo(maps.alerts);
+    }
+  }
+  if(maps.reports && !layers.reports) layers.reports = L.layerGroup().addTo(maps.reports);
+  if(maps.resources && !layers.shelters) layers.shelters = L.layerGroup().addTo(maps.resources);
+}
+
+function colorForSeverity(sev){
+  if(sev === 'Severe' || sev === 'High') return '#e11d48'; // rose-600
+  if(sev === 'Medium') return '#eab308'; // amber-500
+  return '#10b981'; // emerald-500
+}
+
+function renderAlertMarkers(){
+  if(!maps.alerts) return;
+  if(clusters.alerts){ clusters.alerts.clearLayers(); } else if(layers.alerts){ layers.alerts.clearLayers(); }
+  const passes = (a)=>{
+    const hazardOk = filters.hazards.size ? filters.hazards.has(a.hazard) : true;
+    const stateOk = filters.state ? a.state === filters.state : true;
+    const districtOk = filters.district ? a.district === filters.district : true;
+    return hazardOk && stateOk && districtOk;
+  };
+  const filtered = state.alerts.filter(passes);
+  const points = [];
+  filtered.forEach(a=>{
+    if(typeof a.lat === 'number' && typeof a.lng === 'number'){
+      const style = { radius: 7, color: colorForSeverity(a.sev), fillColor: colorForSeverity(a.sev), fillOpacity: 0.85, weight: 1 };
+      const marker = L.circleMarker([a.lat, a.lng], style).bindPopup(`<strong>${a.hazard}</strong> (${a.sev})<br>${a.msg}<br><small>${a.area}</small>`);
+      if(clusters.alerts) clusters.alerts.addLayer(marker); else layers.alerts.addLayer(marker);
+      points.push([a.lat, a.lng]);
+    }
+  });
+  if(points.length >= 2){ maps.alerts.fitBounds(points, { padding: [20,20] }); }
+  else if(points.length === 1){ maps.alerts.setView(points[0], 10); }
+}
+
+function renderReportMarkers(){
+  if(!maps.reports || !layers.reports) return;
+  layers.reports.clearLayers();
+  // Mock geocoding: map a few known place names to coordinates for demo
+  const seed = [
+    {loc:'Khagaria', lat:25.5022, lng:86.4671},
+    {loc:'Mandi', lat:31.5892, lng:76.9182},
+    {loc:'Kolkata', lat:22.5726, lng:88.3639},
+  ];
+  const points = [];
+  state.verifyQueue.forEach((r,i)=>{
+    const m = seed[i % seed.length];
+    if(m){
+      const marker = L.circleMarker([m.lat, m.lng], {
+        radius: 6,
+        color: '#38bdf8',
+        fillColor: '#38bdf8',
+        fillOpacity: 0.85,
+        weight: 1
+      }).bindPopup(`<strong>${r.type}</strong> — ${r.status}<br><small>${r.loc}</small>`);
+      layers.reports.addLayer(marker);
+      points.push([m.lat, m.lng]);
+    }
+  });
+  if(points.length >= 2){ maps.reports.fitBounds(points, { padding: [20,20] }); }
+  else if(points.length === 1){ maps.reports.setView(points[0], 10); }
+}
+
 // Render: role display + role-gated blocks
 function renderRoleBadge(){
   const map = {citizen:'Citizen', authority:'Local Authority', ndrf:'NDRF / Emergency', ngo:'NGO / Volunteer'};
@@ -186,6 +298,8 @@ function renderAlertFeed(){
       </tr>`);
     });
   }
+  // Update alert markers when list/filter changes
+  renderAlertMarkers();
 }
 
 // Render: shelters (dashboard + resources)
@@ -371,7 +485,19 @@ function initTabs(){
     });
     const id = tab.getAttribute('aria-controls');
     $$('.view').forEach(v=>v.classList.remove('active'));
-    document.getElementById(id)?.classList.add('active');
+    const viewEl = document.getElementById(id);
+    viewEl?.classList.add('active');
+    // When a tab becomes visible, Leaflet maps need a size invalidation
+    if(typeof L !== 'undefined'){
+      requestAnimationFrame(()=>{
+        try{
+          if(id === 'alerts-view' && maps.alerts) maps.alerts.invalidateSize();
+          if(id === 'report-view' && maps.reports) maps.reports.invalidateSize();
+          if(id === 'map-view' && maps.risk) maps.risk.invalidateSize();
+          if(id === 'resources-view' && maps.resources) maps.resources.invalidateSize();
+        }catch{}
+      });
+    }
     tab.focus();
   }
 
@@ -481,6 +607,7 @@ $('#submit-report').addEventListener('click', ()=>{
   $('#report-message').textContent='Report submitted for verification.';
   renderStats(); 
   renderVerify();
+  renderReportMarkers();
 });
 
 // Broadcast alert (authority/NDRF)
@@ -550,6 +677,7 @@ document.addEventListener('click', (e)=>{
 
   renderStats(); 
   renderVerify();
+  renderReportMarkers();
 });
 
 // A11y toggles: contrast, kb hints, large text
@@ -626,6 +754,20 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize hazard and region filters/selects
   initHazardFilters();
   initRegionFilters();
+
+  // Initialize maps and render initial markers
+  initMaps();
+  renderAlertMarkers();
+  renderReportMarkers();
+  renderShelterMarkers();
+  // Optional: center one map to user location for demo
+  geolocateAndCenter(maps.alerts || maps.resources || maps.reports, { silent: true });
+
+  // Locate me buttons
+  document.getElementById('locate-alerts')?.addEventListener('click', ()=> geolocateAndCenter(maps.alerts));
+  document.getElementById('locate-reports')?.addEventListener('click', ()=> geolocateAndCenter(maps.reports));
+  document.getElementById('locate-risk')?.addEventListener('click', ()=> geolocateAndCenter(maps.risk));
+  document.getElementById('locate-resources')?.addEventListener('click', ()=> geolocateAndCenter(maps.resources));
 });
 
 // Init: hazard filters + broadcast select
@@ -707,4 +849,145 @@ function initRegionFilters(){
     const districts = DISTRICTS_BY_STATE[st] || [];
     fillSelect(ad, 'Select district', districts);
   });
+}
+
+// Resources: plot shelters with availability color
+function renderShelterMarkers(){
+  if(!maps.resources || !layers.shelters) return;
+  layers.shelters.clearLayers();
+  const points = [];
+  // Demo: assign rough coordinates based on name index
+  const rough = [
+    [28.6139, 77.2090], // Delhi
+    [19.0760, 72.8777], // Mumbai
+    [13.0827, 80.2707], // Chennai
+    [22.5726, 88.3639], // Kolkata
+  ];
+  state.shelters.forEach((s, i)=>{
+    const [lat,lng] = rough[i % rough.length];
+    const ratio = s.avail / Math.max(1, s.cap);
+    const color = ratio > 0.6 ? '#10b981' : (ratio > 0.3 ? '#eab308' : '#e11d48');
+    const m = L.circleMarker([lat,lng], { radius: 7, color, fillColor: color, fillOpacity: 0.85, weight: 1 })
+      .bindPopup(`<strong>${s.name}</strong><br>Capacity: ${s.cap}<br>Available: ${s.avail}<br>Contact: ${s.contact}`);
+    layers.shelters.addLayer(m);
+    points.push([lat,lng]);
+  });
+  if(points.length >= 2) maps.resources.fitBounds(points, { padding: [20,20] });
+  else if(points.length === 1) maps.resources.setView(points[0], 12);
+}
+
+// Helpers for geolocation UI near the map
+function mapKeyFor(map){ return Object.keys(maps).find(k => maps[k] === map) || null; }
+function mapHelpEl(map){
+  try{
+    const container = typeof map.getContainer === 'function' ? map.getContainer() : map._container;
+    const body = container?.parentElement;
+    return body?.querySelector('.help');
+  }catch{ return null; }
+}
+function setMapHelp(map, text){ const el = mapHelpEl(map); if(el){ el.textContent = text; } }
+
+function updateMyLocationMarker(map, coords){
+  if(typeof L === 'undefined') return;
+  const key = mapKeyFor(map);
+  if(!key) return;
+  const { latitude, longitude } = coords;
+  const latlng = [latitude, longitude];
+  if(myLocationMarkers[key]){
+    try{ myLocationMarkers[key].setLatLng(latlng); }catch{}
+  } else {
+    myLocationMarkers[key] = L.circleMarker(latlng, {
+      radius: 6,
+      color: '#2563eb',
+      fillColor: '#3b82f6',
+      fillOpacity: 0.95,
+      weight: 2
+    }).bindPopup('You are here').addTo(map);
+  }
+}
+
+function startLocationWatch(map){
+  const key = mapKeyFor(map);
+  if(!key) return;
+  // Clear previous watch if any
+  if(myLocationWatchIds[key] !== null){
+    try{ navigator.geolocation.clearWatch(myLocationWatchIds[key]); }catch{}
+    myLocationWatchIds[key] = null;
+  }
+  myLocationCentered[key] = false;
+  const id = navigator.geolocation.watchPosition((pos)=>{
+    updateMyLocationMarker(map, pos.coords);
+    if(!myLocationCentered[key]){ map.setView([pos.coords.latitude, pos.coords.longitude], 13); myLocationCentered[key] = true; }
+  }, (err)=>{
+    console.warn('watchPosition error', err);
+    const code = err && err.code;
+    if(code === 1){ // PERMISSION_DENIED
+      setMapHelp(map, 'Location permission denied. Click the lock icon in the address bar, allow Location, and try again.');
+    } else if(code === 2){
+      setMapHelp(map, 'Location unavailable. Ensure GPS/location services are enabled and try again.');
+    } else if(code === 3){
+      setMapHelp(map, 'Location request timed out. Try again.');
+    } else {
+      setMapHelp(map, 'Unable to access your location.');
+    }
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
+  myLocationWatchIds[key] = id;
+}
+
+// Geolocation helper to center a map and trigger browser permission prompt on click
+function geolocateAndCenter(map, { silent = false } = {}){
+  if(!map){ if(!silent) setMapHelp(map, 'Map is not ready yet.'); return; }
+  if(!('geolocation' in navigator)){ if(!silent) setMapHelp(map, 'Geolocation is not supported by your browser.'); return; }
+
+  // Check secure context (required by browsers)
+  const isLocalhost = ['localhost','127.0.0.1','::1'].includes(location.hostname);
+  const isSecure = (window.isSecureContext === true) || location.protocol === 'https:' || isLocalhost;
+  if(!isSecure){ setMapHelp(map, 'Location is blocked on insecure pages. Serve over HTTPS or http://localhost and try again.'); return; }
+
+  const triggerPromptViaGetCurrentPosition = ()=>{
+    setMapHelp(map, 'Requesting location…');
+    navigator.geolocation.getCurrentPosition((pos)=>{
+      // Center once and start live updates
+      updateMyLocationMarker(map, pos.coords);
+      map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+      startLocationWatch(map);
+      setMapHelp(map, 'Live location enabled.');
+    }, (err)=>{
+      if(silent){ console.warn('Geolocation failed:', err); return; }
+      const code = err && err.code;
+      if(code === 1){
+        setMapHelp(map, 'Location permission denied. Use site settings to allow Location and click "Locate me" again.');
+      } else if(code === 2){
+        setMapHelp(map, 'Location unavailable. Ensure GPS/location services are enabled.');
+      } else if(code === 3){
+        setMapHelp(map, 'Location request timed out. Try again.');
+      } else {
+        setMapHelp(map, 'Unable to access your location.');
+      }
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
+  };
+
+  // Use Permissions API when available to decide the best flow
+  if(navigator.permissions && navigator.permissions.query){
+    try{
+      navigator.permissions.query({ name: 'geolocation' }).then((status)=>{
+        if(status.state === 'granted'){
+          startLocationWatch(map);
+          setMapHelp(map, 'Live location enabled.');
+        } else if(status.state === 'prompt'){
+          // Only show the browser permission prompt when not in silent mode
+          if(silent){
+            setMapHelp(map, 'Click "Locate me" to enable live location.');
+            return;
+          }
+          triggerPromptViaGetCurrentPosition();
+        } else { // denied
+          if(!silent) setMapHelp(map, 'Location permission is blocked. Click the lock icon → Site settings → Allow Location, then try again.');
+        }
+      }).catch(()=> triggerPromptViaGetCurrentPosition());
+    }catch{ triggerPromptViaGetCurrentPosition(); }
+  } else {
+    // Fallback: only attempt prompt when not silent
+    if(!silent) triggerPromptViaGetCurrentPosition();
+  }
 }
