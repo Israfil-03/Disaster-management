@@ -1107,3 +1107,106 @@ label{
     grid-template-columns:1fr;
   }
 }
+
+/* ======================
+   Community Chat (Volunteers)
+   ====================== */
+.chat-fab{
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1200;
+  inline-size: 56px;
+  block-size: 56px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--brand) 18%, transparent));
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(0,0,0,.35);
+}
+.chat-fab-icon{ font-size: 22px; }
+
+.chat-panel{
+  position: fixed;
+  right: 24px;
+  bottom: 92px;
+  inline-size: min(420px, calc(100vw - 32px));
+  max-block-size: min(70vh, 640px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.45);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1200;
+}
+.chat-panel.active{ display: flex; }
+
+.chat-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--brand) 14%, transparent));
+}
+.chat-title-group{ display:flex; flex-direction:column; min-width:0; }
+.chat-title{ font-weight: 700; }
+.chat-subtitle{ font-size: 12px; color: var(--sub); }
+.chat-actions{ display:flex; align-items:center; gap:8px; }
+.chat-close{ background: transparent; border-color: var(--border); }
+.chat-clear{ font-size: 12px; padding: 6px 10px; }
+
+.chat-body{
+  padding: 10px;
+  overflow: auto;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, transparent), color-mix(in srgb, var(--panel) 96%, transparent));
+}
+.chat-messages{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.chat-msg{
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px 10px;
+  align-items: center;
+}
+.chat-msg .who{ font-weight: 600; color: var(--accent); }
+.chat-msg .time{ font-size: 11px; color: var(--sub); }
+.chat-bubble{
+  grid-column: 1 / -1;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: 10px;
+  word-wrap: anywhere;
+}
+.chat-bubble.me{ background: color-mix(in srgb, var(--brand) 12%, var(--panel)); }
+.chat-bubble.official{ background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
+
+.chat-input{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+}
+.chat-input .input{ flex: 1; }
+
+/* Only show chat controls within the Volunteers tab context */
+#volunteers-view .chat-fab{ display: inline-flex; }
+#volunteers-view:not(.active) .chat-fab{ display: none; }
+
+@media(max-width:520px){
+  .chat-panel{
+    right: 12px;
+    left: 12px;
+    inline-size: auto;
+    bottom: 84px;
+  }
+  .chat-fab{ right: 12px; bottom: 12px; }
+}

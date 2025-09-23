@@ -416,6 +416,32 @@
           </div>
         </div>
       </div>
+
+      <!-- Collapsible Community Chat (Volunteers) -->
+      <button class="chat-fab" id="chat-toggle" aria-label="Open community chat" title="Community chat">
+        <span class="chat-fab-icon" aria-hidden="true">💬</span>
+      </button>
+
+      <div class="chat-panel" id="chat-panel" role="dialog" aria-modal="false" aria-labelledby="chat-title">
+        <div class="chat-header">
+          <div class="chat-title-group">
+            <span class="chat-title" id="chat-title">Community Chat</span>
+            <span class="chat-subtitle">Volunteers • Moderated by officials</span>
+          </div>
+          <div class="chat-actions">
+            <button class="btn outline chat-clear role-only authority ndrf" id="chat-clear" title="Clear chat for everyone">Clear</button>
+            <button class="btn chat-close" id="chat-close" aria-label="Close chat">✕</button>
+          </div>
+        </div>
+        <div class="chat-body" id="chat-body" aria-live="polite" aria-relevant="additions">
+          <ul class="chat-messages" id="chat-messages"></ul>
+        </div>
+        <div class="chat-input">
+          <label class="sr-only" for="chat-text">Type a message</label>
+          <input id="chat-text" class="input" placeholder="Message the community…" autocomplete="off" />
+          <button class="btn brand" id="chat-send" title="Send message">Send</button>
+        </div>
+      </div>
     </section>
 
   <!-- PAGE: Education -->

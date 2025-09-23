@@ -7,6 +7,11 @@ const state = {
   role: 'citizen',
   lang: 'en',
   theme: undefined, // 'light' | 'dark' | undefined (system)
+  // Community chat (simple local-first demo; replace with backend/Firebase later)
+  chat: {
+    // messages: [{ id, user, role, text, ts }]
+    messages: []
+  },
   // Alerts include hazard + region fields for filtering
   alerts: [
     // Demo entries include approximate coordinates for mapping
@@ -540,6 +545,129 @@ function savePrefs(){
   localStorage.setItem('prefs', JSON.stringify(prefs));
 }
 
+// =======================
+// Community Chat (Volunteers)
+// =======================
+const CHAT_STORAGE_KEY = 'dm_chat_messages_v1';
+
+function loadChat(){
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    if(Array.isArray(arr)) state.chat.messages = arr;
+  } catch {}
+}
+function persistChat(){
+  try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(state.chat.messages)); } catch {}
+}
+
+function renderChat(){
+  const list = document.getElementById('chat-messages');
+  if(!list) return;
+  list.innerHTML = '';
+  state.chat.messages.slice(-200).forEach(m => {
+    const li = document.createElement('li');
+    li.className = 'chat-msg';
+    const who = document.createElement('span'); who.className = 'who'; who.textContent = m.user || 'Anon';
+    const time = document.createElement('span'); time.className = 'time'; time.textContent = new Date(m.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const role = document.createElement('span'); role.className = 'time'; role.textContent = m.role ? `• ${m.role.toUpperCase()}` : '';
+    const bubble = document.createElement('div'); bubble.className = 'chat-bubble'; bubble.textContent = m.text;
+    if(m.role === 'authority' || m.role === 'ndrf') bubble.classList.add('official');
+    if(m.user === 'Me') bubble.classList.add('me');
+    li.appendChild(who); li.appendChild(role); li.appendChild(time); li.appendChild(bubble);
+    list.appendChild(li);
+  });
+  // Scroll to bottom smoothly
+  const body = document.getElementById('chat-body');
+  body && (body.scrollTop = body.scrollHeight);
+}
+
+function pushChatMessage(text, { fromMe = false } = {}){
+  const msg = {
+    id: Math.random().toString(36).slice(2),
+    user: fromMe ? 'Me' : 'Volunteer',
+    role: fromMe ? state.role : 'ngo',
+    text: text.trim(),
+    ts: Date.now()
+  };
+  state.chat.messages.push(msg);
+  // Keep a hard cap to avoid unbounded growth
+  if(state.chat.messages.length > 500) state.chat.messages = state.chat.messages.slice(-500);
+  persistChat();
+  renderChat();
+}
+
+function clearChatAll(){
+  state.chat.messages = [];
+  persistChat();
+  renderChat();
+}
+
+function initChat(){
+  loadChat();
+  renderChat();
+  const toggle = document.getElementById('chat-toggle');
+  const panel = document.getElementById('chat-panel');
+  const closeBtn = document.getElementById('chat-close');
+  const sendBtn = document.getElementById('chat-send');
+  const input = document.getElementById('chat-text');
+  const clearBtn = document.getElementById('chat-clear');
+
+  if(!toggle || !panel) return;
+
+  const applyAria = (isOpen) => {
+    toggle?.setAttribute('aria-expanded', String(isOpen));
+    panel?.setAttribute('aria-hidden', String(!isOpen));
+  };
+  const open = () => { panel.classList.add('active'); panel.style.display = 'flex'; applyAria(true); input?.focus(); };
+  const close = () => { panel.classList.remove('active'); panel.style.display = 'none'; applyAria(false); toggle?.focus(); };
+  // Initialize aria state
+  applyAria(false);
+  panel.style.display = 'none';
+
+  toggle.addEventListener('click', () => {
+    const nowOpen = !panel.classList.contains('active');
+    if(nowOpen) open(); else close();
+  });
+  closeBtn?.addEventListener('click', close);
+
+  // Close when pressing Escape inside the panel
+  panel.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
+
+  // Send message
+  function handleSend(){
+    const val = input?.value.trim();
+    if(!val) return;
+    pushChatMessage(val, { fromMe: true });
+    input.value = '';
+  }
+  sendBtn?.addEventListener('click', handleSend);
+  input?.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); handleSend(); } });
+
+  // Clear (only for authority/ndrf roles), UI gated via .role-only classes, but double gate in JS
+  clearBtn?.addEventListener('click', ()=>{
+    if(state.role === 'authority' || state.role === 'ndrf'){
+      if(confirm('Clear chat for everyone? This removes all messages.')) clearChatAll();
+    }
+  });
+
+  // Demo: if empty, seed a welcome message
+  if(state.chat.messages.length === 0){
+    state.chat.messages.push({ id:'seed1', user:'System', role:'authority', text:'Welcome to the community chat. Coordinate respectfully. Officials may moderate.', ts: Date.now() });
+    persistChat();
+    renderChat();
+  }
+
+  // Hide chat when leaving Volunteers tab
+  const tabs = document.querySelectorAll('.tabs [role="tab"]');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    const controls = t.getAttribute('aria-controls');
+    if(controls !== 'volunteers-view' && panel.classList.contains('active')){
+      close();
+    }
+  }));
+}
+
 // Theme management
 function applyTheme(theme){
   const root = document.documentElement; // <html>
@@ -745,6 +873,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initEducationTabs();
   initVideoInteractions();
   initTabs(); // Keyboard-friendly tabs
+  initChat(); // Community chat
 
   // Apply icons directly from assets/icons
   applyIcons(document);
