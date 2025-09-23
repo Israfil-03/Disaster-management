@@ -1,0 +1,35 @@
+name: Deploy Backend to Azure Web App
+
+on:
+  workflow_dispatch:
+    inputs:
+      webapp_name:
+        description: 'Azure Web App name (e.g., aadhyapath-api)'
+        required: true
+      resource_group:
+        description: 'Azure Resource Group (for information only)'
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Optionally run tests or lint; skip build so App Service Oryx builds it
+      - name: Zip server folder for deployment
+        run: |
+          cd server
+          zip -r ../server.zip .
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ github.event.inputs.webapp_name }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: server.zip
+
+      - name: Print next steps
+        run: |
+          echo "Deployed. Set App Settings in Azure Portal: DATABASE_URL or PG* vars, and CORS_ORIGINS."
