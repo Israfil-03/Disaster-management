@@ -7,6 +7,24 @@
   <title>AadhyaPath — Dashboard</title>
   <meta name="description" content="AadhyaPath: Community crisis alerts, resources, and coordination for resilient response and recovery." />
   <link rel="stylesheet" href="assets/styles.css">
+  <!-- Leaflet CSS for interactive maps -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <!-- MarkerCluster CSS (optional, enhances alert maps with clustering) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+    crossorigin=""
+  />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+    crossorigin=""
+  />
 </head>
 <body>
   <script>
@@ -243,12 +261,10 @@
 
           <!-- Alerts Map (moved into right column) -->
           <div class="card card-compact">
-            <div class="card-header"><strong>Alerts Map</strong><span class="muted">Geospatial view</span></div>
+            <div class="card-header"><strong>Alerts Map</strong><span class="muted">Geospatial view</span><button class="btn outline" id="locate-alerts" title="Center map to my location">Locate me</button></div>
             <div class="card-body">
-              <div class="map-container" role="img" aria-label="Map showing alert locations and impacted areas">
-                <span class="map-placeholder-icon" data-icon="map" aria-hidden="true"></span>
-              </div>
-              <p class="help mt-8">Map placeholder. To be integrated with a map library (e.g., Leaflet) with layers for hazards and impact.</p>
+                <div id="alerts-map" class="map-container" role="img" aria-label="Map showing alert locations and impacted areas"></div>
+                <p class="help mt-8">Interactive map showing current alert markers; filter by hazard, state, and district.</p>
             </div>
           </div>
         </div>
@@ -311,12 +327,10 @@
 
           <!-- Report Map (moved into right column) -->
           <div class="card card-compact">
-            <div class="card-header"><strong>Report Map</strong><span class="muted">Citizen reports</span></div>
+            <div class="card-header"><strong>Report Map</strong><span class="muted">Citizen reports</span><button class="btn outline" id="locate-reports" title="Center map to my location">Locate me</button></div>
             <div class="card-body">
-              <div class="map-container" role="img" aria-label="Map showing citizen reports and verification status">
-                <span class="map-placeholder-icon" data-icon="map" aria-hidden="true"></span>
-              </div>
-              <p class="help mt-8">Map placeholder. Will show reported incidents and verification status.</p>
+              <div id="report-map" class="map-container" role="img" aria-label="Map showing citizen reports and verification status"></div>
+              <p class="help mt-8">Interactive map with citizen reports; status updates appear in real time.</p>
             </div>
           </div>
         </div>
@@ -326,12 +340,10 @@
   <!-- PAGE: Map -->
   <section id="map-view" class="view tab-view" role="region" aria-labelledby="map-tab">
       <div class="card">
-        <div class="card-header"><strong>Risk & Impact Map</strong><span class="muted">Placeholder</span></div>
+        <div class="card-header"><strong>Risk & Impact Map</strong><span class="muted">Interactive</span><button class="btn outline" id="locate-risk" title="Center map to my location">Locate me</button></div>
           <div class="card-body">
-          <div class="map-container" role="img" aria-label="Map placeholder with risk layers">
-            <span class="map-placeholder-icon" data-icon="map" aria-hidden="true"></span>
-          </div>
-          <p class="help mt-8">LIVE MAP.</p>
+          <div id="risk-map" class="map-container" role="img" aria-label="Map with risk layers"></div>
+          <p class="help mt-8">Interactive base map; risk and impact layers can be added next.</p>
         </div>
       </div>
     </section>
@@ -340,19 +352,12 @@
   <section id="resources-view" class="view tab-view" role="region" aria-labelledby="resources-tab">
       <div class="grid cols-2">
         <div class="card">
-          <div class="card-header"><strong>Resources Map</strong><span class="muted">Interactive</span></div>
+          <div class="card-header"><strong>Resources Map</strong><span class="muted">Interactive</span><button class="btn outline" id="locate-resources" title="Center map to my location">Locate me</button></div>
           <div class="card-body">
-            <div class="resources-map" role="img" aria-label="Resources location map">
-              <div class="map-placeholder">
-                <span class="map-icon">🗺️</span>
-                <p>MAP SECTION FOR RESOURCES.NEED TO EDIT LATER!!!!</p>
-                <div class="map-legend">
-                  <div class="legend-item"><span class="legend-color shelter"></span> Shelters</div>
-                  <div class="legend-item"><span class="legend-color hospital"></span> Hospitals</div>
-                  <div class="legend-item"><span class="legend-color supply"></span> Supply Centers</div>
-                  <div class="legend-item"><span class="legend-color emergency"></span> Emergency Services</div>
-                </div>
-              </div>
+            <div id="resources-map" class="map-container" role="img" aria-label="Resources location map"></div>
+            <div class="map-legend mt-8">
+              <div class="legend-item"><span class="legend-color shelter"></span> Shelters</div>
+              <div class="legend-item"><span class="legend-color supply"></span> Supply Centers</div>
             </div>
           </div>
         </div>
@@ -644,6 +649,19 @@
     </section>
   </main>
 
+  <!-- Leaflet JS for interactive maps (load before app.js) -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+    defer
+  ></script>
+  <!-- MarkerCluster JS (optional) -->
+  <script
+    src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"
+    crossorigin=""
+    defer
+  ></script>
   <script src="assets/app.js" defer></script>
 </body>
 </html>
