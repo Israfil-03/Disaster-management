@@ -1,0 +1,42 @@
+{
+  "id": "/",
+  "name": "AadhyaPath",
+  "short_name": "AadhyaPath",
+  "description": "Trusted alerts, reporting, resources, volunteers, and guidance to help communities prepare, respond, and recover.",
+  "start_url": "./index.html?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1320",
+  "theme_color": "#0b1320",
+  "icons": [
+    {
+      "src": "assets/icons/app-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/app-mark-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Report incident",
+      "short_name": "Report",
+      "url": "./AadhyaPath_dashboard.html#report-view"
+    },
+    {
+      "name": "View alerts",
+      "short_name": "Alerts",
+      "url": "./AadhyaPath_dashboard.html#alerts-view"
+    },
+    {
+      "name": "Volunteer board",
+      "short_name": "Volunteers",
+      "url": "./AadhyaPath_dashboard.html#volunteers-view"
+    }
+  ]
+}
