@@ -193,7 +193,10 @@ function renderAlertMarkers(){
   filtered.forEach(a=>{
     if(typeof a.lat === 'number' && typeof a.lng === 'number'){
       const style = { radius: 7, color: colorForSeverity(a.sev), fillColor: colorForSeverity(a.sev), fillOpacity: 0.85, weight: 1 };
-      const marker = L.circleMarker([a.lat, a.lng], style).bindPopup(`<strong>${a.hazard}</strong> (${a.sev})<br>${a.msg}<br><small>${a.area}</small>`);
+      const hz = (window.I18n ? I18n.t('hazards.'+a.hazard) : a.hazard);
+      const sevKey = 'severity.' + String(a.sev||'').toLowerCase();
+      const sev = (window.I18n ? I18n.t(sevKey) : a.sev);
+      const marker = L.circleMarker([a.lat, a.lng], style).bindPopup(`<strong>${hz}</strong> (${sev})<br>${a.msg}<br><small>${a.area}</small>`);
       if(clusters.alerts) clusters.alerts.addLayer(marker); else layers.alerts.addLayer(marker);
       points.push([a.lat, a.lng]);
     }
@@ -221,7 +224,12 @@ function renderReportMarkers(){
         fillColor: '#38bdf8',
         fillOpacity: 0.85,
         weight: 1
-      }).bindPopup(`<strong>${r.type}</strong> — ${r.status}<br><small>${r.loc}</small>`);
+      }).bindPopup(() => {
+        const typeLabel = (window.I18n ? I18n.t('hazards.'+r.type) : r.type);
+        const statusKey = 'status.' + String(r.status||'').toLowerCase();
+        const statusLabel = (window.I18n ? (I18n.t(statusKey) || r.status) : r.status);
+        return `<strong>${typeLabel}</strong> — ${statusLabel}<br><small>${r.loc}</small>`;
+      });
       layers.reports.addLayer(marker);
       points.push([m.lat, m.lng]);
     }
@@ -232,11 +240,13 @@ function renderReportMarkers(){
 
 // Render: role display + role-gated blocks
 function renderRoleBadge(){
-  const map = {citizen:'Citizen', authority:'Local Authority', ndrf:'NDRF / Emergency', ngo:'NGO / Volunteer'};
+  const T = (k)=> (window.I18n ? I18n.t(k) : k);
+  const map = {citizen:T('role.citizen'), authority:T('role.authority'), ndrf:T('role.ndrf'), ngo:T('role.ngo')};
   const roleName = map[state.role];
 
   // Update main role display
-  $('#role-display').textContent = 'Role: ' + roleName;
+  const rd = $('#role-display');
+  if(rd){ rd.textContent = `${T('role.label')}: ${roleName}`; }
 
   // Update profile role display
   const profileRoleEl = $('#profile-role-display');
@@ -284,7 +294,10 @@ function renderAlertFeed(){
       const li = document.createElement('li');
       li.style.margin='8px 0';
       // Hazard badge helps quickly identify the type
-      li.innerHTML = `<span class="kbd">${a.time}</span> <span class="chip">${a.hazard}</span> <span class="${sevClass(a.sev)}">${a.sev}</span> — ${a.msg} <span class="muted">(${a.area})</span>`;
+      const hz = (window.I18n ? I18n.t('hazards.'+a.hazard) : a.hazard);
+      const sevKey = 'severity.' + String(a.sev||'').toLowerCase();
+      const sev = (window.I18n ? I18n.t(sevKey) : a.sev);
+      li.innerHTML = `<span class="kbd">${a.time}</span> <span class="chip">${hz}</span> <span class="${sevClass(a.sev)}">${sev}</span> — ${a.msg} <span class="muted">(${a.area})</span>`;
       feed.appendChild(li);
     });
   }
@@ -294,10 +307,13 @@ function renderAlertFeed(){
   if(tbody){
     tbody.innerHTML='';
     filtered.forEach(a=>{
+      const hz = (window.I18n ? I18n.t('hazards.'+a.hazard) : a.hazard);
+      const sevKey = 'severity.' + String(a.sev||'').toLowerCase();
+      const sev = (window.I18n ? I18n.t(sevKey) : a.sev);
       tbody.insertAdjacentHTML('beforeend', `<tr>
         <td>${a.time}</td>
-        <td><span class="chip">${a.hazard}</span></td>
-        <td>${a.sev}</td>
+        <td><span class="chip">${hz}</span></td>
+        <td>${sev}</td>
         <td>${a.msg}</td>
         <td>${a.area}</td>
       </tr>`);
@@ -336,11 +352,14 @@ function renderVerify(){
   if(!tb) return; // Only render if element exists (role-based visibility)
   tb.innerHTML='';
   state.verifyQueue.forEach((r,i)=>{
+    const typeLabel = (window.I18n ? I18n.t('hazards.'+r.type) : r.type);
+    const statusKey = 'status.' + String(r.status||'').toLowerCase();
+    const statusLabel = (window.I18n ? (I18n.t(statusKey) || r.status) : r.status);
     tb.insertAdjacentHTML('beforeend', `<tr>
-      <td>${r.time}</td><td>${r.type}</td><td>${r.loc}</td><td>${r.status}</td>
+      <td>${r.time}</td><td>${typeLabel}</td><td>${r.loc}</td><td>${statusLabel}</td>
       <td>
-        <button class="btn brand" data-act="approve" data-idx="${i}">Approve</button>
-        <button class="btn" data-act="reject" data-idx="${i}">Reject</button>
+        <button class="btn brand" data-act="approve" data-idx="${i}">${window.I18n ? I18n.t('btn.approve') : 'Approve'}</button>
+        <button class="btn" data-act="reject" data-idx="${i}">${window.I18n ? I18n.t('btn.reject') : 'Reject'}</button>
       </td></tr>`);
   });
 }
@@ -351,11 +370,19 @@ function renderVolunteers(){
   tb.innerHTML='';
   const sel = $('#task-volunteer'); 
   if(sel) {
-    sel.innerHTML='<option value="">Select</option>';
+    sel.innerHTML=`<option value="">${window.I18n ? I18n.t('common.select') : 'Select'}</option>`;
   }
 
   state.volunteers.forEach(v=>{
-    tb.insertAdjacentHTML('beforeend', `<tr><td>${v.name}</td><td>${v.skill}</td><td>${v.area}</td><td>${v.status}</td></tr>`);
+    const skillLabel = (window.I18n ? (I18n.t('skills.' + v.skill) || v.skill) : v.skill);
+    const statusKey = 'status.' + String(v.status||'').toLowerCase();
+    const statusLabel = (window.I18n ? (I18n.t(statusKey) || v.status) : v.status);
+    let areaLabel = v.area;
+    if(window.I18n && typeof v.area === 'string'){
+      const m = v.area.match(/^\s*(Ward)\s+(\d+)\s*$/i);
+      if(m){ areaLabel = `${I18n.t('area.ward')} ${m[2]}`; }
+    }
+    tb.insertAdjacentHTML('beforeend', `<tr><td>${v.name}</td><td>${skillLabel}</td><td>${areaLabel}</td><td>${statusLabel}</td></tr>`);
     if(sel) {
       const opt = document.createElement('option'); 
       opt.value=v.name; 
@@ -372,7 +399,9 @@ function renderTasks(){
   if(!tb) return; 
   tb.innerHTML='';
   state.tasks.forEach(t=>{
-    tb.insertAdjacentHTML('beforeend', `<tr><td>${t.title}</td><td>${t.assignee}</td><td>${t.status}</td></tr>`);
+    const statusKey = 'status.' + String(t.status||'').toLowerCase();
+    const statusLabel = (window.I18n ? (I18n.t(statusKey) || t.status) : t.status);
+    tb.insertAdjacentHTML('beforeend', `<tr><td>${t.title}</td><td>${t.assignee}</td><td>${statusLabel}</td></tr>`);
   });
 }
 
@@ -647,13 +676,13 @@ function initChat(){
   // Clear (only for authority/ndrf roles), UI gated via .role-only classes, but double gate in JS
   clearBtn?.addEventListener('click', ()=>{
     if(state.role === 'authority' || state.role === 'ndrf'){
-      if(confirm('Clear chat for everyone? This removes all messages.')) clearChatAll();
+  if(confirm(window.I18n ? I18n.t('chat.clearConfirm') : 'Clear chat for everyone? This removes all messages.')) clearChatAll();
     }
   });
 
   // Demo: if empty, seed a welcome message
   if(state.chat.messages.length === 0){
-    state.chat.messages.push({ id:'seed1', user:'System', role:'authority', text:'Welcome to the community chat. Coordinate respectfully. Officials may moderate.', ts: Date.now() });
+  state.chat.messages.push({ id:'seed1', user:'System', role:'authority', text:(window.I18n ? I18n.t('chat.seedMessage') : 'Welcome to the community chat. Coordinate respectfully. Officials may moderate.'), ts: Date.now() });
     persistChat();
     renderChat();
   }
@@ -707,8 +736,16 @@ $('#role-select').addEventListener('change', (e)=>{
 
 $('#lang-select').addEventListener('change', (e)=>{ 
   state.lang = e.target.value; 
-  /* placeholder for i18n swap */ 
-  savePrefs(); // DEBUG: persist lang change
+  try { if(window.I18n){ I18n.apply(state.lang); } } catch {}
+  // re-render anything built from JS literals
+  renderRoleBadge();
+  renderStats();
+  renderAlertFeed();
+  // Re-init filters/selects built from literals so placeholders/options translate
+  initHazardFilters();
+  initRegionFilters();
+  initReportTypeOptions();
+  savePrefs();
 });
 
 // Actions: forms + buttons
@@ -718,7 +755,7 @@ $('#submit-report').addEventListener('click', ()=>{
   const loc=$('#report-location').value.trim();
 
   if(!desc || !loc){ 
-    $('#report-message').textContent='Please add description and location.'; 
+    $('#report-message').textContent = (window.I18n ? I18n.t('report.validation.missing') : 'Please add description and location.'); 
     return; 
   }
 
@@ -732,7 +769,7 @@ $('#submit-report').addEventListener('click', ()=>{
   $('#report-description').value=''; 
   $('#report-location').value=''; 
   $('#report-contact').value=''; 
-  $('#report-message').textContent='Report submitted for verification.';
+  $('#report-message').textContent = (window.I18n ? I18n.t('report.submitted') : 'Report submitted for verification.');
   renderStats(); 
   renderVerify();
   renderReportMarkers();
@@ -765,7 +802,7 @@ $('#send-alert').addEventListener('click', ()=>{
   $('#alert-message').value=''; 
   renderStats(); 
   renderAlertFeed();
-  alert('Alert broadcasted (demo).');
+  alert(window.I18n ? I18n.t('alerts.broadcasted') : 'Alert broadcasted (demo).');
 });
 
 // Assign task → state.tasks
@@ -840,7 +877,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load and apply saved preferences (role, lang, contrast)
   const prefs = loadPrefs();
   if(prefs.role){ state.role = prefs.role; const rs=$('#role-select'); if(rs) rs.value = prefs.role; }
-  if(prefs.lang){ state.lang = prefs.lang; const ls=$('#lang-select'); if(ls) ls.value = prefs.lang; }
+  if(prefs.lang){ state.lang = prefs.lang; } else { try { if(window.I18n){ state.lang = I18n.lang; } } catch {}
+  }
+  const ls=$('#lang-select'); if(ls) ls.value = state.lang;
   // Theme: prefer saved; else follow system
   const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
   if(prefs.theme === 'light' || prefs.theme === 'dark'){
@@ -883,6 +922,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize hazard and region filters/selects
   initHazardFilters();
   initRegionFilters();
+  initReportTypeOptions();
 
   // Initialize maps and render initial markers
   initMaps();
@@ -908,7 +948,8 @@ function initHazardFilters(){
     HAZARDS.forEach(h=>{
       const id = `haz-${h.toLowerCase().replace(/\s+/g,'-')}`;
       const label = document.createElement('label');
-      label.innerHTML = `<input type="checkbox" id="${id}" value="${h}"> ${h}`;
+      const hz = (window.I18n ? I18n.t('hazards.'+h) : h);
+      label.innerHTML = `<input type="checkbox" id="${id}" value="${h}"> ${hz}`;
       // On change, update filter set and re-render
       label.querySelector('input').addEventListener('change', (e)=>{
         const checked = e.target.checked;
@@ -919,7 +960,10 @@ function initHazardFilters(){
     });
   }
   if(selBroadcast){
-    selBroadcast.innerHTML = HAZARDS.map(h=>`<option>${h}</option>`).join('');
+    selBroadcast.innerHTML = HAZARDS.map(h=>{
+      const hz = (window.I18n ? I18n.t('hazards.'+h) : h);
+      return `<option value="${h}">${hz}</option>`;
+    }).join('');
   }
   // Clear filters button
   const clearBtn = document.getElementById('clear-filters');
@@ -930,7 +974,7 @@ function initHazardFilters(){
       container?.querySelectorAll('input[type="checkbox"]').forEach(i=> i.checked=false);
       // Reset selects
       const fs = document.getElementById('filter-state'); if(fs) fs.value='';
-      const fd = document.getElementById('filter-district'); if(fd) fd.innerHTML = `<option value="">All districts</option>`;
+      const fd = document.getElementById('filter-district'); if(fd) fd.innerHTML = `<option value="">${window.I18n ? I18n.t('filters.allDistricts') : 'All districts'}</option>`;
       renderAlertFeed();
     });
   }
@@ -951,17 +995,17 @@ function initRegionFilters(){
   };
 
   // Initialize states
-  fillSelect(fs, 'All states/UT', STATES);
-  fillSelect(as, 'Select state/UT', STATES);
+  fillSelect(fs, (window.I18n ? I18n.t('filters.allStates') : 'All states/UT'), STATES);
+  fillSelect(as, (window.I18n ? I18n.t('filters.selectState') : 'Select state/UT'), STATES);
   // Initialize districts
-  fillSelect(fd, 'All districts');
-  fillSelect(ad, 'Select district');
+  fillSelect(fd, (window.I18n ? I18n.t('filters.allDistricts') : 'All districts'));
+  fillSelect(ad, (window.I18n ? I18n.t('filters.selectDistrict') : 'Select district'));
 
   // When a state is chosen in filters, update districts and filter state
   fs?.addEventListener('change', (e)=>{
     filters.state = e.target.value || '';
     const districts = DISTRICTS_BY_STATE[filters.state] || [];
-    fillSelect(fd, 'All districts', districts);
+    fillSelect(fd, (window.I18n ? I18n.t('filters.allDistricts') : 'All districts'), districts);
     filters.district = '';
     renderAlertFeed();
   });
@@ -976,7 +1020,7 @@ function initRegionFilters(){
   as?.addEventListener('change', (e)=>{
     const st = e.target.value || '';
     const districts = DISTRICTS_BY_STATE[st] || [];
-    fillSelect(ad, 'Select district', districts);
+    fillSelect(ad, (window.I18n ? I18n.t('filters.selectDistrict') : 'Select district'), districts);
   });
 }
 
@@ -997,7 +1041,7 @@ function renderShelterMarkers(){
     const ratio = s.avail / Math.max(1, s.cap);
     const color = ratio > 0.6 ? '#10b981' : (ratio > 0.3 ? '#eab308' : '#e11d48');
     const m = L.circleMarker([lat,lng], { radius: 7, color, fillColor: color, fillOpacity: 0.85, weight: 1 })
-      .bindPopup(`<strong>${s.name}</strong><br>Capacity: ${s.cap}<br>Available: ${s.avail}<br>Contact: ${s.contact}`);
+      .bindPopup(`<strong>${s.name}</strong><br>${window.I18n ? I18n.t('table.capacity') : 'Capacity'}: ${s.cap}<br>${window.I18n ? I18n.t('table.available') : 'Available'}: ${s.avail}<br>${window.I18n ? I18n.t('table.contact') : 'Contact'}: ${s.contact}`);
     layers.shelters.addLayer(m);
     points.push([lat,lng]);
   });
@@ -1031,7 +1075,7 @@ function updateMyLocationMarker(map, coords){
       fillColor: '#3b82f6',
       fillOpacity: 0.95,
       weight: 2
-    }).bindPopup('You are here').addTo(map);
+  }).bindPopup(window.I18n ? I18n.t('geo.youAreHere') : 'You are here').addTo(map);
   }
 }
 
@@ -1051,13 +1095,13 @@ function startLocationWatch(map){
     console.warn('watchPosition error', err);
     const code = err && err.code;
     if(code === 1){ // PERMISSION_DENIED
-      setMapHelp(map, 'Location permission denied. Click the lock icon in the address bar, allow Location, and try again.');
+  setMapHelp(map, window.I18n ? I18n.t('geo.permissionDenied') : 'Location permission denied. Click the lock icon in the address bar, allow Location, and try again.');
     } else if(code === 2){
-      setMapHelp(map, 'Location unavailable. Ensure GPS/location services are enabled and try again.');
+  setMapHelp(map, window.I18n ? I18n.t('geo.unavailable') : 'Location unavailable. Ensure GPS/location services are enabled and try again.');
     } else if(code === 3){
-      setMapHelp(map, 'Location request timed out. Try again.');
+  setMapHelp(map, window.I18n ? I18n.t('geo.timeout') : 'Location request timed out. Try again.');
     } else {
-      setMapHelp(map, 'Unable to access your location.');
+  setMapHelp(map, window.I18n ? I18n.t('geo.unable') : 'Unable to access your location.');
     }
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
   myLocationWatchIds[key] = id;
@@ -1065,33 +1109,33 @@ function startLocationWatch(map){
 
 // Geolocation helper to center a map and trigger browser permission prompt on click
 function geolocateAndCenter(map, { silent = false } = {}){
-  if(!map){ if(!silent) setMapHelp(map, 'Map is not ready yet.'); return; }
-  if(!('geolocation' in navigator)){ if(!silent) setMapHelp(map, 'Geolocation is not supported by your browser.'); return; }
+  if(!map){ if(!silent) setMapHelp(map, window.I18n ? I18n.t('geo.mapNotReady') : 'Map is not ready yet.'); return; }
+  if(!('geolocation' in navigator)){ if(!silent) setMapHelp(map, window.I18n ? I18n.t('geo.notSupported') : 'Geolocation is not supported by your browser.'); return; }
 
   // Check secure context (required by browsers)
   const isLocalhost = ['localhost','127.0.0.1','::1'].includes(location.hostname);
   const isSecure = (window.isSecureContext === true) || location.protocol === 'https:' || isLocalhost;
-  if(!isSecure){ setMapHelp(map, 'Location is blocked on insecure pages. Serve over HTTPS or http://localhost and try again.'); return; }
+  if(!isSecure){ setMapHelp(map, window.I18n ? I18n.t('geo.blockedInsecure') : 'Location is blocked on insecure pages. Serve over HTTPS or http://localhost and try again.'); return; }
 
   const triggerPromptViaGetCurrentPosition = ()=>{
-    setMapHelp(map, 'Requesting location…');
+  setMapHelp(map, window.I18n ? I18n.t('geo.requesting') : 'Requesting location…');
     navigator.geolocation.getCurrentPosition((pos)=>{
       // Center once and start live updates
       updateMyLocationMarker(map, pos.coords);
       map.setView([pos.coords.latitude, pos.coords.longitude], 13);
       startLocationWatch(map);
-      setMapHelp(map, 'Live location enabled.');
+  setMapHelp(map, window.I18n ? I18n.t('geo.liveEnabled') : 'Live location enabled.');
     }, (err)=>{
       if(silent){ console.warn('Geolocation failed:', err); return; }
       const code = err && err.code;
       if(code === 1){
-        setMapHelp(map, 'Location permission denied. Use site settings to allow Location and click "Locate me" again.');
+  setMapHelp(map, window.I18n ? I18n.t('geo.permissionDenied') : 'Location permission denied. Use site settings to allow Location and click "Locate me" again.');
       } else if(code === 2){
-        setMapHelp(map, 'Location unavailable. Ensure GPS/location services are enabled.');
+  setMapHelp(map, window.I18n ? I18n.t('geo.unavailable') : 'Location unavailable. Ensure GPS/location services are enabled.');
       } else if(code === 3){
-        setMapHelp(map, 'Location request timed out. Try again.');
+  setMapHelp(map, window.I18n ? I18n.t('geo.timeout') : 'Location request timed out. Try again.');
       } else {
-        setMapHelp(map, 'Unable to access your location.');
+  setMapHelp(map, window.I18n ? I18n.t('geo.unable') : 'Unable to access your location.');
       }
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
   };
@@ -1102,16 +1146,16 @@ function geolocateAndCenter(map, { silent = false } = {}){
       navigator.permissions.query({ name: 'geolocation' }).then((status)=>{
         if(status.state === 'granted'){
           startLocationWatch(map);
-          setMapHelp(map, 'Live location enabled.');
+          setMapHelp(map, window.I18n ? I18n.t('geo.liveEnabled') : 'Live location enabled.');
         } else if(status.state === 'prompt'){
           // Only show the browser permission prompt when not in silent mode
           if(silent){
-            setMapHelp(map, 'Click "Locate me" to enable live location.');
+            setMapHelp(map, window.I18n ? I18n.t('geo.clickLocate') : 'Click "Locate me" to enable live location.');
             return;
           }
           triggerPromptViaGetCurrentPosition();
         } else { // denied
-          if(!silent) setMapHelp(map, 'Location permission is blocked. Click the lock icon → Site settings → Allow Location, then try again.');
+          if(!silent) setMapHelp(map, window.I18n ? I18n.t('geo.permissionDenied') : 'Location permission is blocked. Click the lock icon → Site settings → Allow Location, then try again.');
         }
       }).catch(()=> triggerPromptViaGetCurrentPosition());
     }catch{ triggerPromptViaGetCurrentPosition(); }
@@ -1119,4 +1163,17 @@ function geolocateAndCenter(map, { silent = false } = {}){
     // Fallback: only attempt prompt when not silent
     if(!silent) triggerPromptViaGetCurrentPosition();
   }
+}
+
+// Init: report type select options with localized hazard names
+function initReportTypeOptions(){
+  const rt = document.getElementById('report-type');
+  if(!rt) return;
+  const current = rt.value;
+  rt.innerHTML = HAZARDS.map(h=>{
+    const hz = (window.I18n ? I18n.t('hazards.'+h) : h);
+    return `<option value="${h}">${hz}</option>`;
+  }).join('');
+  // Try to keep previous selection if still present
+  if(current && HAZARDS.includes(current)) rt.value = current;
 }

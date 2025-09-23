@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0b1320" />
-  <title>Account • AadhyaPath</title>
+  <title data-i18n="title.auth">Account • AadhyaPath</title>
       <link rel="icon" href="assets/icons/app-mark.svg" type="image/svg+xml" />
       <link rel="apple-touch-icon" href="assets/icons/app-mark-192.png" sizes="192x192" />
       <link rel="manifest" href="manifest.webmanifest" />
@@ -24,53 +24,54 @@
 
   <section class="auth-card js-init-hide" aria-labelledby="auth-title">
         <header class="tabs" role="tablist">
-          <button id="tab-login" role="tab" aria-controls="panel-login" aria-selected="true" class="tab">Log In</button>
-          <button id="tab-signup" role="tab" aria-controls="panel-signup" aria-selected="false" class="tab">Sign Up</button>
+          <button id="tab-login" role="tab" aria-controls="panel-login" aria-selected="true" class="tab" data-i18n="auth.tabs.login">Log In</button>
+          <button id="tab-signup" role="tab" aria-controls="panel-signup" aria-selected="false" class="tab" data-i18n="auth.tabs.signup">Sign Up</button>
         </header>
 
         <div class="panels">
           <form id="panel-login" role="tabpanel" aria-labelledby="tab-login" class="panel" autocomplete="on">
-            <h1 id="auth-title">Welcome back</h1>
+            <h1 id="auth-title" data-i18n="auth.login.welcome">Welcome back</h1>
             <div class="field">
-              <label for="login-email">Email</label>
-              <input id="login-email" name="email" type="email" inputmode="email" placeholder="you@example.com" required />
+              <label for="login-email" data-i18n="auth.label.email">Email</label>
+              <input id="login-email" name="email" type="email" inputmode="email" placeholder="you@example.com" data-i18n-placeholder="auth.placeholder.email" required />
             </div>
             <div class="field">
-              <label for="login-password">Password</label>
-              <input id="login-password" name="password" type="password" placeholder="••••••••" minlength="6" required />
+              <label for="login-password" data-i18n="auth.label.password">Password</label>
+              <input id="login-password" name="password" type="password" placeholder="••••••••" data-i18n-placeholder="auth.placeholder.password" minlength="6" required />
             </div>
-            <button class="btn btn-primary" type="submit">Log In</button>
-            <p class="muted small">New here? <a href="#" id="link-to-signup">Create an account</a>.</p>
+            <button class="btn btn-primary" type="submit" data-i18n="auth.btn.login">Log In</button>
+            <p class="muted small"><span data-i18n="auth.login.newHere">New here?</span> <a href="#" id="link-to-signup" data-i18n="auth.login.createAccount">Create an account</a>.</p>
           </form>
 
           <form id="panel-signup" role="tabpanel" aria-labelledby="tab-signup" class="panel hidden" autocomplete="on">
-            <h1>Create your account</h1>
+            <h1 data-i18n="auth.signup.title">Create your account</h1>
             <div class="field">
-              <label for="signup-name">Full name</label>
-              <input id="signup-name" name="name" type="text" placeholder="Alex Sharma" required />
+              <label for="signup-name" data-i18n="auth.label.fullname">Full name</label>
+              <input id="signup-name" name="name" type="text" placeholder="Alex Sharma" data-i18n-placeholder="auth.placeholder.fullname" required />
             </div>
             <div class="field">
-              <label for="signup-email">Email</label>
-              <input id="signup-email" name="email" type="email" inputmode="email" placeholder="you@example.com" required />
+              <label for="signup-email" data-i18n="auth.label.email">Email</label>
+              <input id="signup-email" name="email" type="email" inputmode="email" placeholder="you@example.com" data-i18n-placeholder="auth.placeholder.email" required />
             </div>
             <div class="field">
-              <label for="signup-password">Password</label>
-              <input id="signup-password" name="password" type="password" placeholder="At least 6 characters" minlength="6" required />
+              <label for="signup-password" data-i18n="auth.label.password">Password</label>
+              <input id="signup-password" name="password" type="password" placeholder="At least 6 characters" data-i18n-placeholder="auth.placeholder.passwordHint" minlength="6" required />
             </div>
             <div class="field">
-              <label for="signup-confirm">Confirm password</label>
-              <input id="signup-confirm" name="confirm" type="password" placeholder="Repeat password" minlength="6" required />
+              <label for="signup-confirm" data-i18n="auth.label.confirm">Confirm password</label>
+              <input id="signup-confirm" name="confirm" type="password" placeholder="Repeat password" data-i18n-placeholder="auth.placeholder.confirm" minlength="6" required />
             </div>
-            <button class="btn btn-primary" type="submit">Create account</button>
-            <p class="muted small">Already have an account? <a href="#" id="link-to-login">Log in</a>.</p>
+            <button class="btn btn-primary" type="submit" data-i18n="auth.btn.create">Create account</button>
+            <p class="muted small"><span data-i18n="auth.signup.haveAccount">Already have an account?</span> <a href="#" id="link-to-login" data-i18n="auth.signup.login">Log in</a>.</p>
           </form>
         </div>
       </section>
 
-      <p class="legal muted">By continuing, you agree to our Terms and acknowledge our Privacy Policy.</p>
+      <p class="legal muted" data-i18n="auth.legal">By continuing, you agree to our Terms and acknowledge our Privacy Policy.</p>
     </main>
 
     <script src="assets/auth.js"></script>
+    <script src="assets/i18n.js"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

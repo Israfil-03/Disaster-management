@@ -20,6 +20,7 @@ const PRECACHE_URLS = [
   'assets/auth.js',
   'assets/styles.css',
   'assets/app.js',
+  'assets/i18n.js',
   'assets/icons/app-mark.svg',
 ];
 
