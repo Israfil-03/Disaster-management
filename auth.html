@@ -72,10 +72,15 @@
       <p class="legal muted" data-i18n="auth.legal">By continuing, you agree to our Terms and acknowledge our Privacy Policy.</p>
     </main>
 
+  <script type="module" src="assets/firebase.js"></script>
   <script src="assets/config.js"></script>
   <script src="assets/auth.js"></script>
     <script src="assets/i18n.js"></script>
     <script>
+      // If already logged in, send to dashboard
+      (function(){
+        try{ if(localStorage.getItem('dm_logged_in') === '1'){ window.location.replace('AadhyaPath_dashboard.html'); } }catch{}
+      })();
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('service-worker.js').catch(()=>{});

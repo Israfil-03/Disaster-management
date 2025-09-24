@@ -90,7 +90,7 @@
             <div class="profile-header">
               <div class="profile-avatar">👤</div>
               <div>
-                <div class="profile-name">User Profile</div>
+                <div class="profile-name" id="profile-name">User Profile</div>
                 <div class="profile-role" id="profile-role-display">Citizen</div>
               </div>
             </div>
@@ -111,6 +111,7 @@
               </div>
               <div class="profile-footer">
                 <button class="btn outline profile-close" id="profile-close">Close</button>
+                <button class="btn danger" id="sign-out" title="Sign out of your account">Sign out</button>
               </div>
             </div>
           </div>
@@ -694,6 +695,53 @@
   ></script>
   <script src="assets/i18n.js" defer></script>
   <script src="assets/app.js" defer></script>
+  <script type="module">
+    import { auth, onAuthStateChanged, signOut } from './assets/firebase.js';
+
+    // Keep UI in sync with Firebase auth state
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Update profile name display
+        const nameEl = document.getElementById('profile-name');
+        if (nameEl) {
+          nameEl.textContent = user.displayName || user.email || 'Signed in';
+        }
+        // Persist session flags for existing client-side checks
+        try {
+          localStorage.setItem('dm_logged_in', '1');
+          localStorage.setItem('dm_user', JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName || '',
+            provider: 'firebase',
+          }));
+        } catch {}
+      } else {
+        try {
+          localStorage.removeItem('dm_logged_in');
+          localStorage.removeItem('dm_user');
+        } catch {}
+        // Redirect to login when signed out
+        if (!location.pathname.endsWith('/auth.html')) {
+          window.location.replace('auth.html?mode=login');
+        }
+      }
+    });
+
+    // Sign out handler
+    document.addEventListener('click', async (e) => {
+      if (e.target && e.target.id === 'sign-out') {
+        try {
+          await signOut(auth);
+        } catch (_) {
+          // Even if signOut fails locally, clear client flags
+        } finally {
+          try { localStorage.removeItem('dm_logged_in'); localStorage.removeItem('dm_user'); } catch {}
+          window.location.replace('auth.html?mode=login');
+        }
+      }
+    });
+  </script>
 </body>
 </html>
 <script>
