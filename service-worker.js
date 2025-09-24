@@ -3,7 +3,7 @@
  * - Runtime cache for icons, CSS/JS, and map tiles
  * - Offline fallback for navigation requests
  */
-const VERSION = 'v1.0.1';
+const VERSION = 'v1.0.2';
 const PRECACHE = `precache-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 

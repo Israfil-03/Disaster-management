@@ -698,6 +698,20 @@
   <script type="module">
     import { auth, onAuthStateChanged, signOut } from './assets/firebase.js';
 
+    function determineRoleFromEmail(email){
+      try{
+        const e = String(email||'').toLowerCase();
+        const domain = e.split('@')[1] || '';
+        if (!domain) return 'citizen';
+        if (domain === 'ndrf.gov.in' || /(^|\.)ndrf\.gov\.in$/.test(domain)) return 'ndrf';
+        if (/\.gov\.in$/.test(domain) || /\.nic\.in$/.test(domain) || /\.gov$/.test(domain) || domain === 'gov.in') return 'authority';
+        const publicMail = ['gmail.com','yahoo.com','outlook.com','hotmail.com','live.com','msn.com','rediffmail.com','icloud.com','proton.me','protonmail.com','gmx.com','yandex.com','zoho.com'];
+        if (publicMail.includes(domain)) return 'citizen';
+        if (/\.org$/.test(domain) || /\.ngo$/.test(domain) || /(^|\.)ngo(\.|$)/.test(domain)) return 'ngo';
+        return 'citizen';
+      }catch{ return 'citizen'; }
+    }
+
     // Keep UI in sync with Firebase auth state
     onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -709,17 +723,21 @@
         // Persist session flags for existing client-side checks
         try {
           localStorage.setItem('dm_logged_in', '1');
-          localStorage.setItem('dm_user', JSON.stringify({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName || '',
-            provider: 'firebase',
-          }));
+          const role = (localStorage.getItem('dm_role_locked')==='1' && localStorage.getItem('dm_role'))
+            ? localStorage.getItem('dm_role')
+            : determineRoleFromEmail(user.email);
+          localStorage.setItem('dm_role', role);
+          localStorage.setItem('dm_role_locked', '1');
+          localStorage.setItem('dm_user', JSON.stringify({ uid: user.uid, email: user.email, displayName: user.displayName || '', provider: 'firebase', role }));
+          // Sync prefs role to reflect lock
+          try{ const prefs = JSON.parse(localStorage.getItem('prefs')||'{}'); prefs.role = role; localStorage.setItem('prefs', JSON.stringify(prefs)); }catch{}
         } catch {}
       } else {
         try {
           localStorage.removeItem('dm_logged_in');
           localStorage.removeItem('dm_user');
+          localStorage.removeItem('dm_role');
+          localStorage.removeItem('dm_role_locked');
         } catch {}
         // Redirect to login when signed out
         if (!location.pathname.endsWith('/auth.html')) {
@@ -736,7 +754,7 @@
         } catch (_) {
           // Even if signOut fails locally, clear client flags
         } finally {
-          try { localStorage.removeItem('dm_logged_in'); localStorage.removeItem('dm_user'); } catch {}
+          try { localStorage.removeItem('dm_logged_in'); localStorage.removeItem('dm_user'); localStorage.removeItem('dm_role'); localStorage.removeItem('dm_role_locked'); } catch {}
           window.location.replace('auth.html?mode=login');
         }
       }

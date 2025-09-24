@@ -238,6 +238,15 @@ function renderReportMarkers(){
   else if(points.length === 1){ maps.reports.setView(points[0], 10); }
 }
 
+// Read a locked role (set during auth) and constrain UI accordingly
+function getLockedRole(){
+  try{
+    const lr = localStorage.getItem('dm_role');
+    const locked = localStorage.getItem('dm_role_locked') === '1';
+    return locked && lr ? lr : null;
+  }catch{ return null; }
+}
+
 // Render: role display + role-gated blocks
 function renderRoleBadge(){
   const T = (k)=> (window.I18n ? I18n.t(k) : k);
@@ -259,6 +268,18 @@ function renderRoleBadge(){
     const roles = (el.className.match(/citizen|authority|ndrf|ngo/g)||[]);
     el.style.display = roles.includes(state.role) ? '' : 'none';
   });
+
+  // If role is locked, disable the role selector to prevent switching
+  const rs = document.getElementById('role-select');
+  const locked = !!getLockedRole();
+  if(rs){
+    rs.disabled = locked;
+    // Keep the select value synced with state
+    rs.value = state.role;
+    rs.title = locked ? 'Role is assigned based on your account' : 'Select user role';
+    // Optionally hide the control when locked to avoid confusion
+    rs.style.display = locked ? 'none' : '';
+  }
 }
 
 // Render: dashboard KPIs
@@ -726,12 +747,21 @@ document.getElementById('theme-toggle')?.addEventListener('click', ()=>{
 });
 
 $('#role-select').addEventListener('change', (e)=>{ 
-  state.role = e.target.value; 
+  // Prevent switching if role is locked
+  const lockedRole = getLockedRole();
+  if(lockedRole){
+    // Revert UI to locked role
+    e.target.value = lockedRole;
+    state.role = lockedRole;
+  } else {
+    state.role = e.target.value; 
+    // Persist preference only when not locked
+    savePrefs();
+  }
   renderRoleBadge();
   // Re-render components that depend on role
   renderSupplies();
   renderVerify();
-  savePrefs(); // DEBUG: persist role change
 });
 
 $('#lang-select').addEventListener('change', (e)=>{ 
@@ -876,7 +906,13 @@ $('#large-text').addEventListener('change', (e)=>{
 document.addEventListener('DOMContentLoaded', function() {
   // Load and apply saved preferences (role, lang, contrast)
   const prefs = loadPrefs();
-  if(prefs.role){ state.role = prefs.role; const rs=$('#role-select'); if(rs) rs.value = prefs.role; }
+  const lockedRole = getLockedRole();
+  if(lockedRole){
+    state.role = lockedRole;
+    const rs=$('#role-select'); if(rs){ rs.value = lockedRole; rs.disabled = true; rs.title = 'Role is assigned based on your account'; rs.style.display='none'; }
+  } else if(prefs.role){
+    state.role = prefs.role; const rs=$('#role-select'); if(rs) rs.value = prefs.role;
+  }
   if(prefs.lang){ state.lang = prefs.lang; } else { try { if(window.I18n){ state.lang = I18n.lang; } } catch {}
   }
   const ls=$('#lang-select'); if(ls) ls.value = state.lang;
