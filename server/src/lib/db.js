@@ -11,7 +11,7 @@ export const pool = process.env.DATABASE_URL
   : new Pool({
       host: process.env.PGHOST || 'localhost',
       port: Number(process.env.PGPORT || 5432),
-      database: process.env.PGDATABASE || 'aadhya_path',
+      database: process.env.PGDATABASE || 'aadhyapath',
       user: process.env.PGUSER || 'postgres',
       password: process.env.PGPASSWORD,
       max: 10,
