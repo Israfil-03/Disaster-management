@@ -50,11 +50,46 @@ Entry and auth flow
 
 ## Features
 
+- **Multi-language support**: Full interface available in English, Hindi (हिन्दी), and Bengali (বাংলা)
 - Multi-hazard alerts and filters (now includes slow-onset hazards: Air Pollution, Land Degradation, Sea Level Rise)
 - Incident reporting and verification (demo data)
 - Shelters/resources and map placeholders on Alerts and Report pages
 - Volunteers and task assignment (demo)
 - Do's & Don'ts with short videos
+
+## Multi-Language Support
+
+AadhyaPath supports multiple languages to ensure accessibility for diverse communities:
+
+### Supported Languages
+- **English** (en) - Default language
+- **Hindi** (हिन्दी) (hi) - Complete interface translation
+- **Bengali** (বাংলা) (bn) - Complete interface translation
+
+### How Language Support Works
+1. **Language Selection**: Use the language dropdown in the dashboard header to switch between languages
+2. **Automatic Detection**: The app detects your browser's language preference on first visit
+3. **Persistent Preference**: Your language choice is saved in localStorage and applied across all pages
+4. **Complete Coverage**: All UI elements, buttons, labels, and content are translated
+
+### Language Switching
+- Navigate to the dashboard (`AadhyaPath_dashboard.html`)
+- Use the language selector dropdown in the top-right header
+- Select your preferred language (English, हिन्दी, or বাংলা)
+- The interface updates immediately and your preference is saved
+
+### Technical Implementation
+- Translation system uses `assets/i18n.js` with comprehensive message catalogs
+- HTML elements use `data-i18n` attributes for automatic translation
+- Language preferences persist via localStorage integration
+- All pages (landing, auth, dashboard) support internationalization
+
+### Adding New Languages
+To add support for additional languages:
+1. Add language entries to the `messages` object in `assets/i18n.js`
+2. Add the new language option to the language selector in `AadhyaPath_dashboard.html`
+3. Translate all message keys to maintain complete coverage
+4. Test language switching and persistence functionality
 
 ## Project structure
 
