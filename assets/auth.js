@@ -1,5 +1,15 @@
 // Firebase-powered auth (login/signup) for the PWA
 (function () {
+  let hasNavigated = false;
+  async function redirectToDashboard() {
+    hasNavigated = true;
+    // Give the browser a moment to flush localStorage and pending async work before navigating
+    try { await new Promise(r => setTimeout(r, 150)); } catch {}
+    const url = 'AadhyaPath_dashboard.html';
+    try { window.location.href = url; } catch {}
+    // Belt-and-suspenders: try assign shortly after in case the first call was ignored
+    setTimeout(() => { try { if (!/AadhyaPath_dashboard\.html$/i.test(location.pathname)) { window.location.assign(url); } } catch {} }, 10);
+  }
   const $ = (sel) => document.querySelector(sel);
   const loginTab = $('#tab-login');
   const signupTab = $('#tab-signup');
@@ -89,16 +99,22 @@
     const pwd = /** @type {HTMLInputElement} */(document.getElementById('login-password')).value;
     if (!email || !pwd) return;
     try {
-  const mod = await import('./firebase.js');
+      const btn = /** @type {HTMLButtonElement} */ (e.submitter || loginPanel.querySelector('button[type="submit"]'));
+      btn && (btn.disabled = true);
+      const mod = await import('./firebase.js');
       await mod.initAuthPersistence();
       const cred = await mod.signInWithEmailAndPassword(mod.auth, email, pwd);
       const user = cred?.user;
       const role = persistSession({ uid: user?.uid, email: user?.email, displayName: user?.displayName });
+      // Upsert profile in Firestore
+      try { await mod.ensureUserProfile(user, role); } catch {}
       // Redirect to the unified dashboard which will be role-locked by JS
-      window.location.href = 'AadhyaPath_dashboard.html';
+      await redirectToDashboard();
     } catch (err) {
       const msg = (err && err.message) || 'Login failed';
       alert(msg);
+      const btn = /** @type {HTMLButtonElement} */ (e.submitter || loginPanel.querySelector('button[type="submit"]'));
+      btn && (btn.disabled = false);
     }
   });
 
@@ -115,7 +131,9 @@
       return;
     }
     try {
-  const mod = await import('./firebase.js');
+      const btn = /** @type {HTMLButtonElement} */ (e.submitter || signupPanel.querySelector('button[type="submit"]'));
+      btn && (btn.disabled = true);
+      const mod = await import('./firebase.js');
       await mod.initAuthPersistence();
       const cred = await mod.createUserWithEmailAndPassword(mod.auth, email, pwd);
       if (name) {
@@ -124,12 +142,41 @@
         } catch (_) {}
       }
       const user = cred?.user;
-      persistSession({ uid: user?.uid, email: user?.email, displayName: user?.displayName || name });
+      const role = persistSession({ uid: user?.uid, email: user?.email, displayName: user?.displayName || name });
+      // Create initial profile in Firestore
+      try { await mod.ensureUserProfile(user, role); } catch {}
       // Redirect to the unified dashboard which will be role-locked by JS
-      window.location.href = 'AadhyaPath_dashboard.html';
+      await redirectToDashboard();
     } catch (err) {
       const msg = (err && err.message) || 'Sign up failed';
       alert(msg);
+      const btn = /** @type {HTMLButtonElement} */ (e.submitter || signupPanel.querySelector('button[type="submit"]'));
+      btn && (btn.disabled = false);
     }
   });
+
+  // Extra reliability: if Firebase reports an authenticated user at any time on this page, navigate.
+  (async ()=>{
+    try{
+      const mod = await import('./firebase.js');
+      mod.onAuthStateChanged(mod.auth, async (user)=>{
+        if(user && !hasNavigated){
+          hasNavigated = true;
+          // Ensure minimal session flags exist (in case login came from elsewhere)
+          try{
+            const snap = JSON.parse(localStorage.getItem('dm_user')||'{}');
+            if(!snap || !snap.uid){
+              const role = determineRoleFromEmail(user.email);
+              localStorage.setItem('dm_logged_in','1');
+              localStorage.setItem('dm_role', role);
+              localStorage.setItem('dm_role_locked','1');
+              localStorage.setItem('dm_user', JSON.stringify({ uid:user.uid, email:user.email, displayName:user.displayName||'', provider:'firebase', role }));
+              try{ const prefs = JSON.parse(localStorage.getItem('prefs')||'{}'); prefs.role = role; localStorage.setItem('prefs', JSON.stringify(prefs)); }catch{}
+            }
+          }catch{}
+          await redirectToDashboard();
+        }
+      });
+    }catch{}
+  })();
 })();

@@ -1,4 +1,4 @@
-// Firebase initialization and Auth exports (CDN modular SDK)
+// Firebase initialization and Auth/Firestore exports (CDN modular SDK)
 // Note: Keys here are client-side config and not secrets.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
@@ -12,6 +12,22 @@ import {
   updateProfile,
   signOut,
 } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import {
+  getFirestore,
+  enableIndexedDbPersistence,
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
+  updateDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
+  serverTimestamp,
+  deleteDoc,
+} from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // Firebase project configuration (provided by the user)
 const firebaseConfig = {
@@ -26,6 +42,12 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+// Enable offline persistence for Firestore (best effort)
+try {
+  enableIndexedDbPersistence(db).catch(() => {});
+} catch (_) {}
 
 // Persist sessions in local storage (PWA friendly)
 export async function initAuthPersistence() {
@@ -58,3 +80,40 @@ export {
   updateProfile,
   signOut,
 };
+
+// Re-export Firestore helpers for convenience
+export {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
+  updateDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
+  serverTimestamp,
+  deleteDoc,
+};
+
+// Upsert a user profile with role info into Firestore
+export async function ensureUserProfile(user, role) {
+  try {
+    if (!user || !user.uid) return;
+    const ref = doc(db, 'users', user.uid);
+    const snap = await getDoc(ref).catch(() => null);
+    const base = {
+      uid: user.uid,
+      email: user.email || '',
+      displayName: user.displayName || '',
+      role: role || 'citizen',
+      updatedAt: serverTimestamp(),
+    };
+    if (snap && snap.exists && snap.exists()) {
+      await setDoc(ref, base, { merge: true });
+    } else {
+      await setDoc(ref, { ...base, createdAt: serverTimestamp() }, { merge: true });
+    }
+  } catch (_) { /* noop */ }
+}

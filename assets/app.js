@@ -685,19 +685,36 @@ function initChat(){
   panel.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
 
   // Send message
-  function handleSend(){
+  async function handleSend(){
     const val = input?.value.trim();
     if(!val) return;
-    pushChatMessage(val, { fromMe: true });
+    try {
+      const mod = await import('./firebase.js');
+      const me = (()=>{ try{ const u=JSON.parse(localStorage.getItem('dm_user')||'{}'); return u; }catch{return{}} })();
+      await mod.addDoc(mod.collection(mod.db, 'chat'), {
+        text: val,
+        user: me.displayName || me.email || 'Me',
+        role: state.role,
+        ts: mod.serverTimestamp(),
+      });
+    } catch {
+      pushChatMessage(val, { fromMe: true });
+    }
     input.value = '';
   }
   sendBtn?.addEventListener('click', handleSend);
   input?.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); handleSend(); } });
 
   // Clear (only for authority/ndrf roles), UI gated via .role-only classes, but double gate in JS
-  clearBtn?.addEventListener('click', ()=>{
+  clearBtn?.addEventListener('click', async ()=>{
     if(state.role === 'authority' || state.role === 'ndrf'){
-  if(confirm(window.I18n ? I18n.t('chat.clearConfirm') : 'Clear chat for everyone? This removes all messages.')) clearChatAll();
+      if(confirm(window.I18n ? I18n.t('chat.clearConfirm') : 'Clear chat for everyone? This removes all messages.')){
+        try {
+          const mod = await import('./firebase.js');
+          await mod.addDoc(mod.collection(mod.db, 'chat'), { text: '[Chat cleared by officials]', role: 'authority', user: 'System', ts: mod.serverTimestamp() });
+        } catch {}
+        clearChatAll();
+      }
     }
   });
 
@@ -779,7 +796,7 @@ $('#lang-select').addEventListener('change', (e)=>{
 });
 
 // Actions: forms + buttons
-$('#submit-report').addEventListener('click', ()=>{
+$('#submit-report').addEventListener('click', async ()=>{
   const type=$('#report-type').value;
   const desc=$('#report-description').value.trim();
   const loc=$('#report-location').value.trim();
@@ -789,24 +806,37 @@ $('#submit-report').addEventListener('click', ()=>{
     return; 
   }
 
-  state.verifyQueue.unshift({
-    time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
-    type, 
-    loc, 
-    status:'Pending'
-  });
+  // Try to persist to Firestore; fallback to local state
+  try {
+    const mod = await import('./firebase.js');
+    await mod.addDoc(mod.collection(mod.db, 'reports'), {
+      type,
+      desc,
+      loc,
+      status: 'Pending',
+      ts: mod.serverTimestamp(),
+    });
+  } catch {
+    state.verifyQueue.unshift({
+      time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
+      type, 
+      loc, 
+      status:'Pending'
+    });
+    renderStats(); 
+    renderVerify();
+    renderReportMarkers();
+  }
 
   $('#report-description').value=''; 
   $('#report-location').value=''; 
   $('#report-contact').value=''; 
   $('#report-message').textContent = (window.I18n ? I18n.t('report.submitted') : 'Report submitted for verification.');
-  renderStats(); 
-  renderVerify();
-  renderReportMarkers();
+  // When Firestore is active, real-time listeners will update UI
 });
 
 // Broadcast alert (authority/NDRF)
-$('#send-alert').addEventListener('click', ()=>{
+$('#send-alert').addEventListener('click', async ()=>{
   const msg=$('#alert-message').value.trim(); 
   if(!msg) return;
 
@@ -817,22 +847,35 @@ $('#send-alert').addEventListener('click', ()=>{
   const districtName = $('#alert-district')?.value || '';
   const area = districtName ? `${districtName}, ${stateName||''}`.trim() : (stateName || '—');
 
-  // Add to the top (newest first)
-  state.alerts.unshift({
-    time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
-    hazard,
-    sev, 
-    msg, 
-    state: stateName || '',
-    district: districtName || '',
-    area
-  });
+  // Try Firestore write; fallback to local state
+  try {
+    const mod = await import('./firebase.js');
+    await mod.addDoc(mod.collection(mod.db, 'alerts'), {
+      hazard,
+      sev,
+      msg,
+      state: stateName || '',
+      district: districtName || '',
+      area,
+      ts: mod.serverTimestamp(),
+    });
+  } catch {
+    state.alerts.unshift({
+      time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
+      hazard,
+      sev, 
+      msg, 
+      state: stateName || '',
+      district: districtName || '',
+      area
+    });
+    renderStats();
+    renderAlertFeed();
+  }
 
-  // Clear inputs and re-render
+  // Clear inputs and notify
   $('#alert-message').value=''; 
-  renderStats(); 
-  renderAlertFeed();
-  alert(window.I18n ? I18n.t('alerts.broadcasted') : 'Alert broadcasted (demo).');
+  alert(window.I18n ? I18n.t('alerts.broadcasted') : 'Alert broadcasted.');
 });
 
 // Assign task → state.tasks
@@ -856,23 +899,28 @@ document.addEventListener('click', (e) => {
 });
 
 // Verify approve/reject (delegated)
-document.addEventListener('click', (e)=>{
+document.addEventListener('click', async (e)=>{
   const btn=e.target.closest('button[data-act]'); 
   if(!btn) return;
 
   const i=+btn.dataset.idx;
   const act=btn.dataset.act;
 
-  if(act==='approve'){ 
-    state.verifyQueue[i].status='Verified'; 
-  }
-  if(act==='reject'){ 
-    state.verifyQueue.splice(i,1); 
-  }
+  try {
+    const item = state.verifyQueue[i];
+    const mod = await import('./firebase.js');
+    if(item && item.id){
+      const ref = mod.doc(mod.db, 'reports', item.id);
+      if(act==='approve') await mod.updateDoc(ref, { status: 'Verified', updatedAt: mod.serverTimestamp() });
+      if(act==='reject') await mod.deleteDoc(ref);
+      return; // UI will refresh from snapshot
+    }
+  } catch {}
 
-  renderStats(); 
-  renderVerify();
-  renderReportMarkers();
+  // Fallback to local state if Firestore not available or item lacks id
+  if(act==='approve'){ state.verifyQueue[i].status='Verified'; }
+  if(act==='reject'){ state.verifyQueue.splice(i,1); }
+  renderStats(); renderVerify(); renderReportMarkers();
 });
 
 // A11y toggles: contrast, kb hints, large text
@@ -904,14 +952,18 @@ $('#large-text').addEventListener('change', (e)=>{
 
 // Bootstrap: on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
+  // Hard guard: if somehow opened without auth flag, bounce to login
+  try { if(localStorage.getItem('dm_logged_in') !== '1'){ window.location.replace('auth.html?mode=login'); return; } } catch {}
   // Load and apply saved preferences (role, lang, contrast)
   const prefs = loadPrefs();
   const lockedRole = getLockedRole();
   if(lockedRole){
     state.role = lockedRole;
-    const rs=$('#role-select'); if(rs){ rs.value = lockedRole; rs.disabled = true; rs.title = 'Role is assigned based on your account'; rs.style.display='none'; }
+    const rs=$('#role-select'); if(rs){ rs.value = lockedRole; rs.disabled = true; rs.title = 'Role is assigned based on your account'; rs.classList.add('role-hidden'); }
+    // Ensure any listeners dependent on role apply immediately
+    try { window.dispatchEvent(new CustomEvent('dm:role-updated')); } catch {}
   } else if(prefs.role){
-    state.role = prefs.role; const rs=$('#role-select'); if(rs) rs.value = prefs.role;
+    state.role = prefs.role; const rs=$('#role-select'); if(rs){ rs.value = prefs.role; rs.disabled = false; rs.classList.remove('role-hidden'); }
   }
   if(prefs.lang){ state.lang = prefs.lang; } else { try { if(window.I18n){ state.lang = I18n.lang; } } catch {}
   }
@@ -973,6 +1025,81 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('locate-reports')?.addEventListener('click', ()=> geolocateAndCenter(maps.reports));
   document.getElementById('locate-risk')?.addEventListener('click', ()=> geolocateAndCenter(maps.risk));
   document.getElementById('locate-resources')?.addEventListener('click', ()=> geolocateAndCenter(maps.resources));
+
+  // Firestore real-time listeners (optional)
+  (async ()=>{
+    try {
+      const mod = await import('./firebase.js');
+      // Alerts: newest first
+      const alertsQ = mod.query(mod.collection(mod.db, 'alerts'), mod.orderBy('ts','desc'), mod.limit(100));
+      mod.onSnapshot(alertsQ, (snap)=>{
+        const items = [];
+        snap.forEach(doc=>{
+          const d = doc.data();
+          items.push({
+            id: doc.id,
+            time: d?.ts?.toDate ? d.ts.toDate().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '',
+            hazard: d?.hazard || 'Alert',
+            sev: d?.sev || 'Low',
+            msg: d?.msg || '',
+            state: d?.state || '',
+            district: d?.district || '',
+            area: d?.area || '',
+            lat: d?.lat,
+            lng: d?.lng,
+          });
+        });
+        state.alerts = items;
+        renderStats();
+        renderAlertFeed();
+      });
+
+      // Reports: newest first
+      const reportsQ = mod.query(mod.collection(mod.db, 'reports'), mod.orderBy('ts','desc'), mod.limit(200));
+      mod.onSnapshot(reportsQ, (snap)=>{
+        const items = [];
+        snap.forEach(doc=>{
+          const d = doc.data();
+          items.push({ id: doc.id, time: d?.ts?.toDate ? d.ts.toDate().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '', type: d?.type || '', loc: d?.loc || '', status: d?.status || 'Pending' });
+        });
+        state.verifyQueue = items;
+        renderStats();
+        renderVerify();
+        renderReportMarkers();
+      });
+
+      // Chat: chronological order
+      const chatQ = mod.query(mod.collection(mod.db, 'chat'), mod.orderBy('ts','asc'), mod.limit(200));
+      mod.onSnapshot(chatQ, (snap)=>{
+        const msgs = [];
+        snap.forEach(doc=>{
+          const d = doc.data();
+          msgs.push({ id: doc.id, user: d?.user || 'Anon', role: d?.role || '', text: d?.text || '', ts: d?.ts?.toDate ? d.ts.toDate().getTime() : Date.now() });
+        });
+        state.chat.messages = msgs;
+        persistChat();
+        renderChat();
+      });
+    } catch (err) {
+      console.warn('Firestore not initialized; continuing with local demo data.', err);
+    }
+  })();
+});
+
+// React to role changes set by auth script (lock enforced)
+window.addEventListener('dm:role-updated', ()=>{
+  try{
+    const lr = getLockedRole();
+    if(lr){
+      state.role = lr;
+      const rs = document.getElementById('role-select');
+      if(rs){ rs.value = lr; rs.disabled = true; rs.title = 'Role is assigned based on your account'; rs.classList.add('role-hidden'); }
+      renderRoleBadge();
+      // Re-render components depending on role
+      renderSupplies();
+      renderVerify();
+    }
+  }catch{}
 });
 
 // Init: hazard filters + broadcast select

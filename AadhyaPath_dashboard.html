@@ -32,15 +32,7 @@
   />
 </head>
 <body>
-  <script>
-    // Simple client-side gate to ensure access only after auth
-    try {
-      const ok = localStorage.getItem('dm_logged_in') === '1';
-      if (!ok) {
-        window.location.replace('auth.html?mode=signup');
-      }
-    } catch {}
-  </script>
+  
   <!-- Skip link -->
   <a href="#app" class="sr-only focusable" id="skip-link" data-i18n="skip.to.main">Skip to main content</a>
   <header role="banner">
@@ -55,7 +47,7 @@
       </div>
   <!-- Controls: role/lang/contrast/profile -->
   <div class="controls header-controls" role="group" aria-label="Header controls">
-        <select id="role-select" class="select" aria-label="Select user role">
+        <select id="role-select" class="select role-hidden" aria-label="Select user role" disabled title="Role is assigned based on your account">
           <option value="citizen">Citizen</option>
           <option value="authority">Local Authority</option>
           <option value="ndrf">NDRF / Emergency</option>
@@ -731,6 +723,8 @@
           localStorage.setItem('dm_user', JSON.stringify({ uid: user.uid, email: user.email, displayName: user.displayName || '', provider: 'firebase', role }));
           // Sync prefs role to reflect lock
           try{ const prefs = JSON.parse(localStorage.getItem('prefs')||'{}'); prefs.role = role; localStorage.setItem('prefs', JSON.stringify(prefs)); }catch{}
+          // Notify app.js to re-apply role lock & UI gating immediately
+          try { window.dispatchEvent(new CustomEvent('dm:role-updated')); } catch {}
         } catch {}
       } else {
         try {
@@ -760,12 +754,13 @@
       }
     });
   </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+      });
+    }
+  </script>
 </body>
 </html>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js').catch(()=>{});
-    });
-  }
-</script>
