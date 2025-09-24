@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node ./src/index.js",
     "dev": "nodemon ./src/index.js",
-    "db:check": "node ./src/scripts/dbCheck.js"
+    "db:check": "node ./src/scripts/dbCheck.js",
+    "db:create": "node ./src/scripts/createDb.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

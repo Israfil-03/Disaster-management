@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import authRouter from './routes/auth.js';
+import { healthCheck as dbHealthCheck } from './lib/db.js';
 
 dotenv.config();
 
@@ -27,9 +28,11 @@ app.use(express.json());
 // API routes
 app.use('/api/auth', authRouter);
 
-// Simple health endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+// Health endpoint including DB status
+app.get('/api/health', async (req, res) => {
+  let db = false;
+  try { db = await dbHealthCheck(); } catch {}
+  res.json({ status: 'ok', db, time: new Date().toISOString() });
 });
 
 // Serve static frontend from project root so you can hit /auth.html etc.
