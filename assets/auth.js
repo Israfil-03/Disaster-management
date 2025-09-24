@@ -1,4 +1,4 @@
-// Basic client-side auth flow for demo purposes only
+// Firebase-powered auth (login/signup) for the PWA
 (function () {
   const $ = (sel) => document.querySelector(sel);
   const loginTab = $('#tab-login');
@@ -38,33 +38,33 @@
   $('#link-to-signup')?.addEventListener('click', (e) => { e.preventDefault(); setMode('signup'); });
   $('#link-to-login')?.addEventListener('click', (e) => { e.preventDefault(); setMode('login'); });
 
-  // Real validation with backend and redirect to dashboard on success
+  // Firebase Auth: login
   loginPanel.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = /** @type {HTMLInputElement} */(document.getElementById('login-email')).value.trim();
     const pwd = /** @type {HTMLInputElement} */(document.getElementById('login-password')).value;
     if (!email || !pwd) return;
     try {
-      const base = (window.API_BASE || '').trim();
-      const url = (base ? base : '') + '/api/auth/login';
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pwd })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        alert(data?.error || 'Login failed');
-        return;
-      }
+  const mod = await import('./firebase.js');
+      await mod.initAuthPersistence();
+      const cred = await mod.signInWithEmailAndPassword(mod.auth, email, pwd);
+      const user = cred?.user;
+      // Persist a small user snapshot for dashboard usage
       localStorage.setItem('dm_logged_in', '1');
-      localStorage.setItem('dm_user', JSON.stringify(data.user || {}));
+      localStorage.setItem('dm_user', JSON.stringify({
+        uid: user?.uid,
+        email: user?.email,
+        displayName: user?.displayName || '',
+        provider: 'firebase',
+      }));
       window.location.href = 'AadhyaPath_dashboard.html';
     } catch (err) {
-      alert('Network error while logging in. Ensure the server is running.');
+      const msg = (err && err.message) || 'Login failed';
+      alert(msg);
     }
   });
 
+  // Firebase Auth: sign up
   signupPanel.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = /** @type {HTMLInputElement} */(document.getElementById('signup-name')).value.trim();
@@ -77,23 +77,26 @@
       return;
     }
     try {
-      const base = (window.API_BASE || '').trim();
-      const url = (base ? base : '') + '/api/auth/signup';
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password: pwd })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        alert(data?.error || 'Sign up failed');
-        return;
+  const mod = await import('./firebase.js');
+      await mod.initAuthPersistence();
+      const cred = await mod.createUserWithEmailAndPassword(mod.auth, email, pwd);
+      if (name) {
+        try {
+          await mod.updateProfile(cred.user, { displayName: name });
+        } catch (_) {}
       }
+      const user = cred?.user;
       localStorage.setItem('dm_logged_in', '1');
-      localStorage.setItem('dm_user', JSON.stringify(data.user || {}));
+      localStorage.setItem('dm_user', JSON.stringify({
+        uid: user?.uid,
+        email: user?.email,
+        displayName: user?.displayName || name || '',
+        provider: 'firebase',
+      }));
       window.location.href = 'AadhyaPath_dashboard.html';
     } catch (err) {
-      alert('Network error while signing up. Ensure the server is running.');
+      const msg = (err && err.message) || 'Sign up failed';
+      alert(msg);
     }
   });
 })();
