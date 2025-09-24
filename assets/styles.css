@@ -1,3 +1,5 @@
+/* Hide role selector when role is locked by auth */
+.role-hidden { display: none; }
 /* For now we are using a simple CSS approach. Need to upgrade to tailwind or bootstrap later. */
 
 /* =============================================================================
