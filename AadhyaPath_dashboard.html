@@ -689,12 +689,13 @@
   <script src="assets/i18n.js" defer></script>
   <script src="assets/dashboard-auth.js" defer></script>
   <script src="assets/app.js" defer></script>
+  <script>
+    // Register service worker for PWA (must be within the document, before </body>)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+      });
+    }
+  </script>
 </body>
 </html>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js').catch(()=>{});
-    });
-  }
-</script>
