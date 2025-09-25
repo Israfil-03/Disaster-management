@@ -130,3 +130,47 @@ Notes
 - Map tiles from OpenStreetMap and Leaflet CDN are cached with a stale‑while‑revalidate strategy when online; they may not be available on a cold offline start if not previously viewed.
 - Large videos are streamed (Range requests) and not aggressively cached to avoid storage bloat.
 
+## Supabase integration (database-backed)
+
+We added a first-class Supabase backend so the app can be functional with live data and real-time updates.
+
+- `assets/config.js` initializes the client with your Project URL and anon key
+- `supabase/schema.sql` defines tables and RLS policies for `profiles`, `alerts`, and `reports`
+- `assets/app.js` loads/saves alerts and reports and subscribes to realtime
+
+Setup on Windows PowerShell:
+
+```powershell
+# Install Supabase CLI (once)
+iwr https://repo.supabase.com/install/cli.ps1 -useb | iex
+
+# Authenticate
+supabase login
+
+# Link the local repo folder to your Supabase project (enter your project ref)
+# (Run from the repository root that contains the supabase/ folder)
+supabase link --project-ref <your-project-ref>
+
+# Apply the schema
+supabase db push
+```
+
+In the Supabase Dashboard → Authentication → URL Configuration, add these Redirect URLs:
+
+- http://localhost:8000/auth.html
+- https://<your-gh-pages-username>.github.io/Disaster-Management/auth.html
+
+Data import/export between projects (optional):
+
+```powershell
+# Export data from source
+supabase link --project-ref <source-ref>
+supabase db dump --data-only --output dump.sql
+
+# Import into target (after linking to target)
+supabase link --project-ref <target-ref>
+psql "$(supabase db connect)" -f dump.sql
+```
+
+Realtime: ensure Realtime is enabled for the `public` schema in the project settings. The frontend subscribes to inserts/updates on `alerts` and `reports`.
+

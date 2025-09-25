@@ -53,6 +53,97 @@ const state = {
   tasks:[]
 };
 
+// Supabase integration (optional): if window.supabaseClient exists, use it to load/save alerts and reports
+const supabase = window.supabaseClient || null;
+
+async function dbLoadInitial(){
+  if(!supabase) return;
+  try{
+    const { data: alerts, error: aErr } = await supabase
+      .from('alerts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if(!aErr && Array.isArray(alerts)){
+      state.alerts = alerts.map(r=>({
+        time: new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+        hazard: r.hazard,
+        sev: r.severity,
+        msg: r.message,
+        state: r.state_name || '',
+        district: r.district || '',
+        area: r.area || '',
+        lat: typeof r.lat === 'number' ? r.lat : undefined,
+        lng: typeof r.lng === 'number' ? r.lng : undefined
+      }));
+    }
+  }catch(e){ console.warn('Failed to load alerts from Supabase', e); }
+  try{
+    const { data: reports, error: rErr } = await supabase
+      .from('reports')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if(!rErr && Array.isArray(reports)){
+      state.verifyQueue = reports.map(r=>({
+        time: new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+        type: r.type,
+        loc: r.location,
+        status: r.status
+      }));
+    }
+  }catch(e){ console.warn('Failed to load reports from Supabase', e); }
+}
+
+function initRealtime(){
+  if(!supabase) return;
+  try{
+    supabase.channel('realtime:alerts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, (payload)=>{
+        const r = payload.new;
+        state.alerts.unshift({
+          time: new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+          hazard: r.hazard,
+          sev: r.severity,
+          msg: r.message,
+          state: r.state_name || '',
+          district: r.district || '',
+          area: r.area || '',
+          lat: typeof r.lat === 'number' ? r.lat : undefined,
+          lng: typeof r.lng === 'number' ? r.lng : undefined
+        });
+        renderStats();
+        renderAlertFeed();
+        renderAlertMarkers();
+      })
+      .subscribe();
+
+    supabase.channel('realtime:reports')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, (payload)=>{
+        const r = payload.new;
+        state.verifyQueue.unshift({
+          time: new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+          type: r.type,
+          loc: r.location,
+          status: r.status
+        });
+        renderStats();
+        renderVerify();
+        renderReportMarkers();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'reports' }, (payload)=>{
+        const r = payload.new;
+        const idx = state.verifyQueue.findIndex(x => x.loc === r.location && x.type === r.type);
+        if(idx >= 0){
+          state.verifyQueue[idx].status = r.status;
+          renderVerify();
+          renderReportMarkers();
+        }
+      })
+      .subscribe();
+  }catch(e){ console.warn('Supabase realtime setup failed', e); }
+}
+
 // Hazards we support for filtering and reporting
 // Note: keep this in sync with report-type options for consistency
 const HAZARDS = [
@@ -773,7 +864,7 @@ $('#lang-select').addEventListener('change', (e)=>{
 });
 
 // Actions: forms + buttons
-$('#submit-report').addEventListener('click', ()=>{
+$('#submit-report').addEventListener('click', async ()=>{
   const type=$('#report-type').value;
   const desc=$('#report-description').value.trim();
   const loc=$('#report-location').value.trim();
@@ -782,13 +873,27 @@ $('#submit-report').addEventListener('click', ()=>{
     $('#report-message').textContent = (window.I18n ? I18n.t('report.validation.missing') : 'Please add description and location.'); 
     return; 
   }
-
-  state.verifyQueue.unshift({
-    time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
-    type, 
-    loc, 
-    status:'Pending'
-  });
+  let insertedToDb = false;
+  if(supabase && initialAppData?.user){
+    try{
+      const { error } = await supabase.from('reports').insert({
+        type,
+        description: desc,
+        location: loc,
+        contact: $('#report-contact')?.value || null
+      });
+      if(error) throw error;
+      insertedToDb = true; // realtime will add to UI
+    }catch(e){ console.warn('Supabase insert(reports) failed; using local fallback', e); }
+  }
+  if(!insertedToDb){
+    state.verifyQueue.unshift({
+      time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
+      type, 
+      loc, 
+      status:'Pending'
+    });
+  }
 
   $('#report-description').value=''; 
   $('#report-location').value=''; 
@@ -800,7 +905,7 @@ $('#submit-report').addEventListener('click', ()=>{
 });
 
 // Broadcast alert (authority/NDRF)
-$('#send-alert').addEventListener('click', ()=>{
+$('#send-alert').addEventListener('click', async ()=>{
   const msg=$('#alert-message').value.trim(); 
   if(!msg) return;
 
@@ -811,22 +916,39 @@ $('#send-alert').addEventListener('click', ()=>{
   const districtName = $('#alert-district')?.value || '';
   const area = districtName ? `${districtName}, ${stateName||''}`.trim() : (stateName || '—');
 
-  // Add to the top (newest first)
-  state.alerts.unshift({
-    time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
-    hazard,
-    sev, 
-    msg, 
-    state: stateName || '',
-    district: districtName || '',
-    area
-  });
+  let insertedToDb = false;
+  if(supabase && (state.role === 'authority' || state.role === 'ndrf')){
+    try{
+      const { error } = await supabase.from('alerts').insert({
+        hazard,
+        severity: sev,
+        message: msg,
+        state_name: stateName || null,
+        district: districtName || null,
+        area: area || null
+      });
+      if(error) throw error;
+      insertedToDb = true; // realtime will render it
+    }catch(e){ console.warn('Supabase insert(alerts) failed; using local fallback', e); }
+  }
+  if(!insertedToDb){
+    // Add to the top (newest first)
+    state.alerts.unshift({
+      time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
+      hazard,
+      sev, 
+      msg, 
+      state: stateName || '',
+      district: districtName || '',
+      area
+    });
+  }
 
   // Clear inputs and re-render
   $('#alert-message').value=''; 
   renderStats(); 
   renderAlertFeed();
-  alert(window.I18n ? I18n.t('alerts.broadcasted') : 'Alert broadcasted (demo).');
+  alert(window.I18n ? I18n.t('alerts.broadcasted') : 'Alert broadcasted.');
 });
 
 // Assign task → state.tasks
@@ -850,7 +972,7 @@ document.addEventListener('click', (e) => {
 });
 
 // Verify approve/reject (delegated)
-document.addEventListener('click', (e)=>{
+document.addEventListener('click', async (e)=>{
   const btn=e.target.closest('button[data-act]'); 
   if(!btn) return;
 
@@ -858,9 +980,17 @@ document.addEventListener('click', (e)=>{
   const act=btn.dataset.act;
 
   if(act==='approve'){ 
+    const item = state.verifyQueue[i];
+    if(supabase && (state.role === 'authority' || state.role === 'ndrf')){
+      try{ await supabase.from('reports').update({ status: 'Verified' }).eq('location', item.loc).eq('type', item.type); }catch{}
+    }
     state.verifyQueue[i].status='Verified'; 
   }
   if(act==='reject'){ 
+    const item = state.verifyQueue[i];
+    if(supabase && (state.role === 'authority' || state.role === 'ndrf')){
+      try{ await supabase.from('reports').update({ status: 'Rejected' }).eq('location', item.loc).eq('type', item.type); }catch{}
+    }
     state.verifyQueue.splice(i,1); 
   }
 
@@ -930,6 +1060,16 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   if(prefs.contrast){ document.body.classList.add('contrast'); const ct=$('#contrast-toggle'); ct?.setAttribute('aria-pressed','true'); const hc=$('#high-contrast'); if(hc) hc.checked = true; }
   renderRoleBadge();
+  // Load from DB then render, otherwise use demo
+  if(supabase){
+    dbLoadInitial().then(()=>{
+      renderStats();
+      renderAlertFeed();
+      renderVerify();
+      renderReportMarkers();
+    });
+    initRealtime();
+  }
   renderStats();
   renderAlertFeed();
   renderShelters();
