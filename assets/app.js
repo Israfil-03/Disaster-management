@@ -3,10 +3,21 @@ const $ = (q) => document.querySelector(q);
 const $$ = (q) => Array.from(document.querySelectorAll(q));
 
 
+const initialAppData = window.__APP_INITIAL_DATA__ || {};
+try {
+  const url = new URL(window.location.href);
+  const urlRole = (url.searchParams.get('role') || '').toLowerCase();
+  if (urlRole) {
+    initialAppData.role = urlRole;
+  }
+} catch {}
+
 const state = {
-  role: 'citizen',
+  role: initialAppData.role || 'citizen',
   lang: 'en',
   theme: undefined, // 'light' | 'dark' | undefined (system)
+  profile: initialAppData.profile || null,
+  user: initialAppData.user || null,
   // Community chat (simple local-first demo; replace with backend/Firebase later)
   chat: {
     // messages: [{ id, user, role, text, ts }]
@@ -242,7 +253,17 @@ function renderReportMarkers(){
 function renderRoleBadge(){
   const T = (k)=> (window.I18n ? I18n.t(k) : k);
   const map = {citizen:T('role.citizen'), authority:T('role.authority'), ndrf:T('role.ndrf'), ngo:T('role.ngo')};
-  const roleName = map[state.role];
+  const roleName = map[state.role] || state.role;
+
+  const roleSelect = $('#role-select');
+  if(roleSelect && !roleSelect.disabled){
+    roleSelect.value = state.role;
+  }
+
+  const profileNameEl = document.querySelector('.profile-name');
+  if(profileNameEl && state.profile?.full_name){
+    profileNameEl.textContent = state.profile.full_name;
+  }
 
   // Update main role display
   const rd = $('#role-display');
@@ -726,12 +747,15 @@ document.getElementById('theme-toggle')?.addEventListener('click', ()=>{
 });
 
 $('#role-select').addEventListener('change', (e)=>{ 
-  state.role = e.target.value; 
+  // Make role selector display-only when authenticated; dashboard-auth disables it already.
+  const nextRole = e.target.value; 
+  state.role = nextRole; 
   renderRoleBadge();
   // Re-render components that depend on role
   renderSupplies();
   renderVerify();
-  savePrefs(); // DEBUG: persist role change
+  // Do not persist role in prefs if server-provided role exists
+  if (!initialAppData.role) savePrefs();
 });
 
 $('#lang-select').addEventListener('change', (e)=>{ 
@@ -876,7 +900,13 @@ $('#large-text').addEventListener('change', (e)=>{
 document.addEventListener('DOMContentLoaded', function() {
   // Load and apply saved preferences (role, lang, contrast)
   const prefs = loadPrefs();
-  if(prefs.role){ state.role = prefs.role; const rs=$('#role-select'); if(rs) rs.value = prefs.role; }
+  if(!initialAppData.role && prefs.role){
+    state.role = prefs.role;
+  }
+  const roleSelectEl = $('#role-select');
+  if(roleSelectEl){
+    roleSelectEl.value = state.role;
+  }
   if(prefs.lang){ state.lang = prefs.lang; } else { try { if(window.I18n){ state.lang = I18n.lang; } } catch {}
   }
   const ls=$('#lang-select'); if(ls) ls.value = state.lang;
