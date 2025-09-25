@@ -55,6 +55,16 @@ const state = {
 
 // Supabase integration (optional): if window.supabaseClient exists, use it to load/save alerts and reports
 const supabase = window.supabaseClient || null;
+// Helper: get current authenticated user id; avoids relying on a stale snapshot of __APP_INITIAL_DATA__
+async function getCurrentUserId(){
+  try{ if(window.__APP_INITIAL_DATA__?.user?.id) return window.__APP_INITIAL_DATA__.user.id; }catch{}
+  if(!supabase) return null;
+  try{ const { data } = await supabase.auth.getSession(); return data?.session?.user?.id || null; }catch{ return null; }
+}
+// Demo mode flag and BroadcastChannel for cross-tab demo sync
+const DEMO = !!window.__DEMO_MODE__;
+let demoBus = null;
+try { if (DEMO && 'BroadcastChannel' in window) demoBus = new BroadcastChannel('aadhyapath-demo'); } catch {}
 
 async function dbLoadInitial(){
   if(!supabase) return;
@@ -86,6 +96,7 @@ async function dbLoadInitial(){
       .limit(200);
     if(!rErr && Array.isArray(reports)){
       state.verifyQueue = reports.map(r=>({
+        id: r.id,
         time: new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
         type: r.type,
         loc: r.location,
@@ -93,6 +104,23 @@ async function dbLoadInitial(){
       }));
     }
   }catch(e){ console.warn('Failed to load reports from Supabase', e); }
+}
+
+// Polling fallback to keep UI in sync if Realtime is disabled/not available
+let pollingTimer = null;
+function startPolling(){
+  if(!supabase) return;
+  if(pollingTimer) return;
+  pollingTimer = setInterval(async ()=>{
+    try{
+      await dbLoadInitial();
+      renderStats();
+      renderAlertFeed();
+      renderVerify();
+      renderAlertMarkers();
+      renderReportMarkers();
+    }catch{}
+  }, 10000);
 }
 
 function initRealtime(){
@@ -122,6 +150,7 @@ function initRealtime(){
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, (payload)=>{
         const r = payload.new;
         state.verifyQueue.unshift({
+          id: r.id,
           time: new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
           type: r.type,
           loc: r.location,
@@ -133,7 +162,9 @@ function initRealtime(){
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'reports' }, (payload)=>{
         const r = payload.new;
-        const idx = state.verifyQueue.findIndex(x => x.loc === r.location && x.type === r.type);
+        let idx = -1;
+        if(r.id != null){ idx = state.verifyQueue.findIndex(x => x.id === r.id); }
+        if(idx < 0){ idx = state.verifyQueue.findIndex(x => x.loc === r.location && x.type === r.type); }
         if(idx >= 0){
           state.verifyQueue[idx].status = r.status;
           renderVerify();
@@ -874,13 +905,16 @@ $('#submit-report').addEventListener('click', async ()=>{
     return; 
   }
   let insertedToDb = false;
-  if(supabase && initialAppData?.user){
+  // Resolve the live user id at submit time (auth guard sets __APP_INITIAL_DATA__, but it may not be ready at script load)
+  const userId = await getCurrentUserId();
+  if(supabase && userId){
     try{
       const { error } = await supabase.from('reports').insert({
         type,
         description: desc,
         location: loc,
-        contact: $('#report-contact')?.value || null
+        contact: $('#report-contact')?.value || null,
+        created_by: userId
       });
       if(error) throw error;
       insertedToDb = true; // realtime will add to UI
@@ -888,17 +922,25 @@ $('#submit-report').addEventListener('click', async ()=>{
   }
   if(!insertedToDb){
     state.verifyQueue.unshift({
+      id:null,
       time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
       type, 
       loc, 
       status:'Pending'
     });
+    // Cross-tab demo sync
+    try{ demoBus?.postMessage({ type:'report:add', payload:{ type, loc, status:'Pending' } }); }catch{}
+    // Let the user know this didn't reach the server
+    const msg = window.I18n ? I18n.t('report.savedLocalOnly') : 'Saved locally only. Sign in again and check your connection to sync with server.';
+    $('#report-message').textContent = msg;
   }
 
   $('#report-description').value=''; 
   $('#report-location').value=''; 
   $('#report-contact').value=''; 
-  $('#report-message').textContent = (window.I18n ? I18n.t('report.submitted') : 'Report submitted for verification.');
+  if(insertedToDb){
+    $('#report-message').textContent = (window.I18n ? I18n.t('report.submitted') : 'Report submitted for verification.');
+  }
   renderStats(); 
   renderVerify();
   renderReportMarkers();
@@ -925,7 +967,8 @@ $('#send-alert').addEventListener('click', async ()=>{
         message: msg,
         state_name: stateName || null,
         district: districtName || null,
-        area: area || null
+        area: area || null,
+        created_by: initialAppData?.user?.id || null
       });
       if(error) throw error;
       insertedToDb = true; // realtime will render it
@@ -942,6 +985,8 @@ $('#send-alert').addEventListener('click', async ()=>{
       district: districtName || '',
       area
     });
+    // Cross-tab demo sync
+    try{ demoBus?.postMessage({ type:'alert:add', payload:{ hazard, sev, msg, state: stateName||'', district: districtName||'', area } }); }catch{}
   }
 
   // Clear inputs and re-render
@@ -982,16 +1027,26 @@ document.addEventListener('click', async (e)=>{
   if(act==='approve'){ 
     const item = state.verifyQueue[i];
     if(supabase && (state.role === 'authority' || state.role === 'ndrf')){
-      try{ await supabase.from('reports').update({ status: 'Verified' }).eq('location', item.loc).eq('type', item.type); }catch{}
+      try{ 
+        const q = supabase.from('reports').update({ status: 'Verified' });
+        if(item.id != null) await q.eq('id', item.id);
+        else await q.eq('location', item.loc).eq('type', item.type);
+      }catch{}
     }
     state.verifyQueue[i].status='Verified'; 
+    try{ demoBus?.postMessage({ type:'report:update', payload:{ idx:i, status:'Verified' } }); }catch{}
   }
   if(act==='reject'){ 
     const item = state.verifyQueue[i];
     if(supabase && (state.role === 'authority' || state.role === 'ndrf')){
-      try{ await supabase.from('reports').update({ status: 'Rejected' }).eq('location', item.loc).eq('type', item.type); }catch{}
+      try{ 
+        const q = supabase.from('reports').update({ status: 'Rejected' });
+        if(item.id != null) await q.eq('id', item.id);
+        else await q.eq('location', item.loc).eq('type', item.type);
+      }catch{}
     }
     state.verifyQueue.splice(i,1); 
+    try{ demoBus?.postMessage({ type:'report:remove', payload:{ idx:i } }); }catch{}
   }
 
   renderStats(); 
@@ -1069,6 +1124,7 @@ document.addEventListener('DOMContentLoaded', function() {
       renderReportMarkers();
     });
     initRealtime();
+    startPolling();
   }
   renderStats();
   renderAlertFeed();
@@ -1083,6 +1139,44 @@ document.addEventListener('DOMContentLoaded', function() {
   initVideoInteractions();
   initTabs(); // Keyboard-friendly tabs
   initChat(); // Community chat
+
+  // Demo cross-tab listeners (local only)
+  if(demoBus){
+    demoBus.onmessage = (ev)=>{
+      const m = ev?.data || {};
+      if(m.type === 'alert:add'){
+        const a = m.payload || {};
+        state.alerts.unshift({
+          time:new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+          hazard:a.hazard, sev:a.sev, msg:a.msg,
+          state:a.state||'', district:a.district||'', area:a.area||''
+        });
+        renderStats(); renderAlertFeed(); renderAlertMarkers();
+      }
+      if(m.type === 'report:add'){
+        const r = m.payload || {};
+        state.verifyQueue.unshift({
+          time:new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+          type:r.type, loc:r.loc, status:r.status||'Pending'
+        });
+        renderStats(); renderVerify(); renderReportMarkers();
+      }
+      if(m.type === 'report:update'){
+        const { idx, status } = m.payload || {};
+        if(Number.isInteger(idx) && state.verifyQueue[idx]){
+          state.verifyQueue[idx].status = status || state.verifyQueue[idx].status;
+          renderVerify(); renderReportMarkers();
+        }
+      }
+      if(m.type === 'report:remove'){
+        const { idx } = m.payload || {};
+        if(Number.isInteger(idx)){
+          state.verifyQueue.splice(idx,1);
+          renderStats(); renderVerify(); renderReportMarkers();
+        }
+      }
+    };
+  }
 
   // Apply icons directly from assets/icons
   applyIcons(document);

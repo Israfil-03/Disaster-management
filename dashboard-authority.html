@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AadhyaPath — Authority Dashboard</title>
+  <meta http-equiv="refresh" content="0; url=AadhyaPath_dashboard.html?role=authority">
+  <script>
+    (function(){
+      try{
+        var cur = new URL(window.location.href);
+        var next = new URL('AadhyaPath_dashboard.html', window.location.href);
+        next.searchParams.set('role','authority');
+        if(cur.searchParams.get('demo')==='1') next.searchParams.set('demo','1');
+        window.location.replace(next.toString());
+      }catch(e){ window.location.replace('AadhyaPath_dashboard.html?role=authority'); }
+    })();
+  </script>
+  <noscript>
+    <meta http-equiv="refresh" content="0; url=AadhyaPath_dashboard.html?role=authority" />
+  </noscript>
+</head>
+<body></body>
+</html>

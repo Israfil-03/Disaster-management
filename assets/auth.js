@@ -126,7 +126,20 @@
     try {
       const { data } = await supabase.auth.getSession();
       if (data?.session) {
-        window.location.replace('AadhyaPath_dashboard.html');
+        const session = data.session;
+        let finalRole = 'citizen';
+        try {
+          const { data: prof } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+          if (prof?.role) finalRole = String(prof.role).toLowerCase();
+        } catch {}
+        if (!finalRole || finalRole === 'citizen') {
+          finalRole = (session.user?.user_metadata?.role || '').toLowerCase() || inferRoleFromEmail(session.user?.email || '') || 'citizen';
+        }
+        const baseNext = roleDashboardRoutes[finalRole] || 'AadhyaPath_dashboard.html';
+        const current = new URL(window.location.href);
+        const next = new URL(baseNext, window.location.href);
+        if (current.searchParams.get('demo') === '1') next.searchParams.set('demo','1');
+        window.location.replace(next.toString());
       }
     } catch (err) {
       console.warn('Failed to read session', err);
@@ -155,23 +168,46 @@
         }
         return;
       }
+
       const user = data?.user;
-      let role = (user?.user_metadata?.role || '').toLowerCase() || 'citizen';
-      // If role is missing or inconsistent with domain, infer and persist
       const inferred = inferRoleFromEmail(email);
-      if (role !== inferred) {
-        try { await supabase.auth.updateUser({ data: { role: inferred } }); } catch {}
-        role = inferred;
+      // 1) Prefer profile role if present
+      let finalRole = 'citizen';
+      try {
+        const { data: prof } = await supabase.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle();
+        if (prof?.role) finalRole = String(prof.role).toLowerCase();
+      } catch {}
+      // 2) Fallback: use metadata role, then inferred by domain
+      if (!finalRole || finalRole === 'citizen') {
+        finalRole = (user?.user_metadata?.role || '').toLowerCase() || inferred || 'citizen';
       }
-      if (!isDomainAllowedForRole(role, email)) {
-        await supabase.auth.signOut();
-        const description = describeAllowedDomains(role);
-        showAlert(`The email domain is not authorized for ${ROLE_LABELS[role] || role} accounts. Allowed domains: ${description}.`, 'info');
+      // 3) Enforce domain rules; coerce to the best allowed role
+      if (!isDomainAllowedForRole(finalRole, email)) {
+        if (isDomainAllowedForRole('authority', email)) finalRole = 'authority';
+        else if (isDomainAllowedForRole('ndrf', email)) finalRole = 'ndrf';
+        else finalRole = 'citizen';
+      }
+
+      // Sync metadata and ensure profile row exists
+      try { await supabase.auth.updateUser({ data: { role: finalRole } }); } catch {}
+      try {
+        const fullName = (user?.user_metadata?.full_name || '').trim() || email;
+        await supabase.from('profiles').upsert({ id: user.id, full_name: fullName, role: finalRole }, { onConflict: 'id' });
+      } catch (e) { console.warn('Profile upsert on login failed', e); }
+
+      // Build next URL and preserve demo flag from current URL if present
+      {
+        const current = new URL(window.location.href);
+        const baseNext = roleDashboardRoutes[finalRole] || 'AadhyaPath_dashboard.html';
+        const next = new URL(baseNext, window.location.href);
+        if (current.searchParams.get('demo') === '1') {
+          next.searchParams.set('demo', '1');
+        }
+        const nextUrl = next.toString();
+        showAlert('Login successful. Redirecting…', 'success');
+        window.location.replace(nextUrl);
         return;
       }
-      const nextUrl = roleDashboardRoutes[role] || 'AadhyaPath_dashboard.html';
-      showAlert('Login successful. Redirecting…', 'success');
-      window.location.replace(nextUrl);
     } catch (err) {
       console.error(err);
       showAlert('Unexpected error while signing in. Please try again.');
@@ -208,15 +244,17 @@
     setSubmitting(submitBtn, true, 'Create account', 'Creating…');
 
     try {
-      const redirectUrl = new URL('auth.html?mode=login', window.location.href).toString();
+      const redirectUrl = (()=>{
+        const u = new URL('auth.html?mode=login', window.location.href);
+        // Keep demo flag if present during signup flow
+        try { if (new URL(window.location.href).searchParams.get('demo') === '1') u.searchParams.set('demo','1'); } catch {}
+        return u.toString();
+      })();
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: name,
-            role
-          },
+          data: { full_name: name, role },
           emailRedirectTo: redirectUrl
         }
       });
@@ -226,21 +264,23 @@
         return;
       }
 
-      const userId = data?.user?.id;
+      const userId = data?.user?.id || null;
       if (userId) {
-        // Populate a row in profiles table (requires RLS policy allowing auth.uid() inserts)
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({ id: userId, full_name: name, role }, { onConflict: 'id' });
-        if (profileError) {
-          console.warn('Profile upsert failed', profileError);
-        }
+        // Ensure a profile row exists for RLS-dependent features
+        try {
+          await supabase.from('profiles').upsert({ id: userId, full_name: name, role }, { onConflict: 'id' });
+        } catch (e) { console.warn('Profile upsert on signup failed', e); }
       }
 
       if (data?.session) {
-        const nextUrl = roleDashboardRoutes[role] || 'AadhyaPath_dashboard.html';
+        const current = new URL(window.location.href);
+        const baseNext = roleDashboardRoutes[role] || 'AadhyaPath_dashboard.html';
+        const next = new URL(baseNext, window.location.href);
+        if (current.searchParams.get('demo') === '1') {
+          next.searchParams.set('demo', '1');
+        }
         showAlert('Account created. Redirecting…', 'success');
-        window.location.replace(nextUrl);
+        window.location.replace(next.toString());
       } else {
         showAlert('Account created. Please verify your email inbox before logging in.', 'success');
         setMode('login');
@@ -275,7 +315,17 @@
   // Keep listening for auth state changes (e.g., email magic link in same tab)
   supabase.auth.onAuthStateChange((_event, session) => {
     if (session) {
-      window.location.replace('AadhyaPath_dashboard.html');
+      try {
+        const current = new URL(window.location.href);
+        const user = session.user;
+        let finalRole = (user?.user_metadata?.role || '').toLowerCase() || inferRoleFromEmail(user?.email || '') || 'citizen';
+        const baseNext = roleDashboardRoutes[finalRole] || 'AadhyaPath_dashboard.html';
+        const next = new URL(baseNext, window.location.href);
+        if (current.searchParams.get('demo') === '1') next.searchParams.set('demo','1');
+        window.location.replace(next.toString());
+      } catch {
+        window.location.replace('AadhyaPath_dashboard.html');
+      }
     }
   });
 })();
