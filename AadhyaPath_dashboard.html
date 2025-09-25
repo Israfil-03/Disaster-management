@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="auth-checking">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -28,17 +28,11 @@
     href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
     crossorigin=""
   />
+  <style>
+    html.auth-checking body { visibility: hidden; }
+  </style>
 </head>
 <body>
-  <script>
-    // Simple client-side gate to ensure access only after auth
-    try {
-      const ok = localStorage.getItem('dm_logged_in') === '1';
-      if (!ok) {
-        window.location.replace('auth.html?mode=signup');
-      }
-    } catch {}
-  </script>
   <!-- Skip link -->
   <a href="#app" class="sr-only focusable" id="skip-link" data-i18n="skip.to.main">Skip to main content</a>
   <header role="banner">
@@ -109,6 +103,7 @@
               </div>
               <div class="profile-footer">
                 <button class="btn outline profile-close" id="profile-close">Close</button>
+                <button class="btn warn" id="logout-btn">Log out</button>
               </div>
             </div>
           </div>
@@ -689,7 +684,10 @@
     crossorigin=""
     defer
   ></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous" defer></script>
+  <script src="assets/config.js" defer></script>
   <script src="assets/i18n.js" defer></script>
+  <script src="assets/dashboard-auth.js" defer></script>
   <script src="assets/app.js" defer></script>
 </body>
 </html>

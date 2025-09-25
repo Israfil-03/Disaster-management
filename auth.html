@@ -28,6 +28,7 @@
           <button id="tab-signup" role="tab" aria-controls="panel-signup" aria-selected="false" class="tab" data-i18n="auth.tabs.signup">Sign Up</button>
         </header>
 
+        <div id="auth-alert" class="alert hidden" role="alert"></div>
         <div class="panels">
           <form id="panel-login" role="tabpanel" aria-labelledby="tab-login" class="panel" autocomplete="on">
             <h1 id="auth-title" data-i18n="auth.login.welcome">Welcome back</h1>
@@ -61,6 +62,18 @@
               <label for="signup-confirm" data-i18n="auth.label.confirm">Confirm password</label>
               <input id="signup-confirm" name="confirm" type="password" placeholder="Repeat password" data-i18n-placeholder="auth.placeholder.confirm" minlength="6" required />
             </div>
+            <div class="field">
+              <label for="signup-role">Role</label>
+              <select id="signup-role" name="role" required>
+                <option value="citizen">Citizen</option>
+                <option value="authority">Government Official</option>
+                <option value="ngo">NGO / Volunteer</option>
+                <option value="ndrf">NDRF / Emergency</option>
+              </select>
+              <p class="muted small" id="role-domain-hint">
+                Citizen (non-official): <code>alex@example.com</code> • Authority: <code>officer@disaster.gov.in</code> • NGO: <code>coordinator@relief.ngo.org</code> • NDRF: <code>responder@ops.ndrf.gov.in</code>
+              </p>
+            </div>
             <button class="btn btn-primary" type="submit" data-i18n="auth.btn.create">Create account</button>
             <p class="muted small"><span data-i18n="auth.signup.haveAccount">Already have an account?</span> <a href="#" id="link-to-login" data-i18n="auth.signup.login">Log in</a>.</p>
           </form>
@@ -70,8 +83,10 @@
       <p class="legal muted" data-i18n="auth.legal">By continuing, you agree to our Terms and acknowledge our Privacy Policy.</p>
     </main>
 
-    <script src="assets/auth.js"></script>
-    <script src="assets/i18n.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/auth.js"></script>
+  <script src="assets/i18n.js"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

@@ -22,6 +22,83 @@ Entry and auth flow
 - After signup/login, you will be redirected to `AadhyaPath_dashboard.html` (dashboard). Direct access to the dashboard is gated.
 
 
+## Supabase setup
+
+1. Create a Supabase project (the dashboard link you shared already points to one) and copy the **Project URL** and **anon public key** from *Project Settings → API*.
+2. Update `assets/config.js` with those values. This file is committed so that GitHub Pages can serve the static site; remember never to expose your service role key.
+3. In *Authentication → URL configuration*, add the following redirect URLs so email confirmations or magic links land back on the site:
+	 - `https://<your-gh-pages-username>.github.io/Disaster-Management/auth.html`
+	 - `http://localhost:8000/auth.html`
+4. (Optional but recommended) Disable “Confirm email” for new users if you want immediate access after sign-up. If you keep confirmation enabled, users must click the link sent by Supabase before logging in.
+5. When creating accounts for different personas, pick the matching role during sign-up (`citizen`, `authority`, `ngo`, or `ndrf`). You can also edit the `profiles` table later to promote/demote a user.
+6. Role-based email domains:
+	- Citizen — any domain
+	- Government Authority — `@gov.in`, `@nic.in`
+	- NGO — `@ngo.org`
+	- NDRF — `@ndrf.gov.in`
+	Adjust the lists in `assets/config.js` (`window.authRoleDomains`) if your organization uses different domains.
+	Example accounts for quick testing:
+	- Citizen — `alex@example.com`
+	- Government Authority — `officer@disaster.gov.in`
+	- NGO — `coordinator@relief.ngo.org`
+	- NDRF — `responder@ops.ndrf.gov.in`
+	Citizen accounts must avoid official domains reserved for other roles.
+
+
+## Database schema (run in Supabase SQL editor)
+
+```sql
+create table if not exists public.profiles (
+	id uuid primary key references auth.users on delete cascade,
+	full_name text,
+	role text not null default 'citizen' check (role in ('citizen','authority','ngo','ndrf')),
+	created_at timestamp with time zone default timezone('utc', now()),
+	updated_at timestamp with time zone default timezone('utc', now())
+);
+
+alter table public.profiles enable row level security;
+
+create policy if not exists "Users can manage own profile" on public.profiles
+	for all
+	using (auth.uid() = id)
+	with check (auth.uid() = id);
+
+create or replace function public.handle_profile_on_signup()
+returns trigger as $$
+begin
+	insert into public.profiles (id, full_name, role)
+	values (
+		new.id,
+		coalesce(new.raw_user_meta_data->>'full_name', new.email),
+		coalesce(new.raw_user_meta_data->>'role', 'citizen')
+	)
+	on conflict (id) do update set
+		full_name = excluded.full_name,
+		role = excluded.role,
+		updated_at = timezone('utc', now());
+	return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+	after insert on auth.users
+	for each row execute function public.handle_profile_on_signup();
+```
+
+- The `profiles` table stores full name and role for each user.
+- Row Level Security (RLS) ensures each signed-in user can read/write only their own row.
+- The trigger keeps `profiles` in sync with Supabase Auth metadata so the client does not need elevated privileges.
+
+
+## Deploying to GitHub Pages
+
+1. Commit your changes (including the filled `assets/config.js`) to the branch that GitHub Pages serves (commonly `main` or `/docs`).
+2. In the repository settings, enable GitHub Pages for the appropriate branch and root folder.
+3. Once published, verify that the hosted URL matches the redirect URLs configured in Supabase.
+4. Whenever you rotate the anon key or change Supabase credentials, update `assets/config.js` and redeploy.
+
+
 
 ## Features
 

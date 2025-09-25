@@ -88,7 +88,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Icons/SVGs: cache-first with SWR update
-  if (url.origin === location.origin && url.pathname.startsWith('/assets/icons/')) {
+  // Use a subpath-friendly check so it works on GitHub Pages (served under 
+  // /<repo>/assets/icons/* instead of just /assets/icons/*)
+  if (url.origin === location.origin && url.pathname.includes('/assets/icons/')) {
     event.respondWith(
       caches.match(req).then((cached) => cached || staleWhileRevalidate(req))
     );
