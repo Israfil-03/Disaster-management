@@ -24,22 +24,9 @@ const state = {
     messages: []
   },
   // Alerts include hazard + region fields for filtering
-  alerts: [
-    // Demo entries include approximate coordinates for mapping
-    {time:'14:05', hazard:'Heavy Rain', sev:'High', msg:'Red alert: Heavy rainfall expected next 12h', state:'Kerala', district:'Alappuzha', area:'Alappuzha, Kerala', lat:9.4981, lng:76.3388},
-    {time:'13:40', hazard:'Flood', sev:'Medium', msg:'River level rising, avoid low-lying zones', state:'Bihar', district:'Saharsa', area:'Saharsa, Bihar', lat:25.8793, lng:86.5961},
-    {time:'13:10', hazard:'Heatwave', sev:'Low', msg:'Heat advisory lifted for today', state:'Maharashtra', district:'Nagpur', area:'Nagpur, Maharashtra', lat:21.1458, lng:79.0882}
-  ],
-  verifyQueue: [
-    {time:'14:00', type:'Flood', loc:'Khagaria – Rampur', status:'Pending'},
-    {time:'13:20', type:'Landslide', loc:'Mandi – Pandoh', status:'Pending'},
-    {time:'12:50', type:'Health', loc:'Kolkata – Rajarhat', status:'Pending'}
-  ],
-  shelters: [
-    {name:'Govt School Hall', cap:150, avail:95, contact:'080-123456'},
-    {name:'Panchayat Bhawan', cap:200, avail:130, contact:'080-223344'},
-    {name:'Community Centre', cap:120, avail:70, contact:'080-445566'}
-  ],
+  alerts: [],
+  verifyQueue: [],
+  shelters: [],
   supplies: [
     {id:'#A102', type:'Dry ration', status:'En route', eta:'18:00'},
     {id:'#B341', type:'Water', status:'Loaded', eta:'16:30'},
@@ -773,7 +760,7 @@ $('#lang-select').addEventListener('change', (e)=>{
 });
 
 // Actions: forms + buttons
-$('#submit-report').addEventListener('click', ()=>{
+$('#submit-report').addEventListener('click', async ()=>{
   const type=$('#report-type').value;
   const desc=$('#report-description').value.trim();
   const loc=$('#report-location').value.trim();
@@ -783,24 +770,33 @@ $('#submit-report').addEventListener('click', ()=>{
     return; 
   }
 
-  state.verifyQueue.unshift({
-    time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
-    type, 
-    loc, 
-    status:'Pending'
-  });
-
-  $('#report-description').value=''; 
-  $('#report-location').value=''; 
-  $('#report-contact').value=''; 
-  $('#report-message').textContent = (window.I18n ? I18n.t('report.submitted') : 'Report submitted for verification.');
+  try{
+    const res = await window.API.reports.create({ type, description: desc, location: loc, contact: $('#report-contact').value.trim() });
+    const item = res?.item;
+    // Optimistic/local update for the submitter; others get it via socket
+    if(item){
+      state.verifyQueue.unshift({
+        id: item.id,
+        time: new Date(item.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+        type: item.type,
+        loc: item.location,
+        status: item.status || 'Pending'
+      });
+    }
+    $('#report-description').value=''; 
+    $('#report-location').value=''; 
+    $('#report-contact').value=''; 
+    $('#report-message').textContent = (window.I18n ? I18n.t('report.submitted') : 'Report submitted for verification.');
+  }catch(err){
+    $('#report-message').textContent = err?.message || 'Failed to submit report.';
+  }
   renderStats(); 
   renderVerify();
   renderReportMarkers();
 });
 
 // Broadcast alert (authority/NDRF)
-$('#send-alert').addEventListener('click', ()=>{
+$('#send-alert').addEventListener('click', async ()=>{
   const msg=$('#alert-message').value.trim(); 
   if(!msg) return;
 
@@ -811,22 +807,33 @@ $('#send-alert').addEventListener('click', ()=>{
   const districtName = $('#alert-district')?.value || '';
   const area = districtName ? `${districtName}, ${stateName||''}`.trim() : (stateName || '—');
 
-  // Add to the top (newest first)
-  state.alerts.unshift({
-    time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
-    hazard,
-    sev, 
-    msg, 
-    state: stateName || '',
-    district: districtName || '',
-    area
-  });
-
-  // Clear inputs and re-render
-  $('#alert-message').value=''; 
-  renderStats(); 
-  renderAlertFeed();
-  alert(window.I18n ? I18n.t('alerts.broadcasted') : 'Alert broadcasted (demo).');
+  try{
+    const res = await window.API.alerts.create({ hazard, severity: sev, message: msg, state: stateName, district: districtName, area });
+    const a = res?.item;
+    // Optimistic/local update for broadcaster; others get it via socket
+    const entry = a ? {
+      time: new Date(a.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+      hazard: a.hazard,
+      sev: a.severity || sev,
+      msg: a.message,
+      state: a.state || stateName || '',
+      district: a.district || districtName || '',
+      area: a.area || area || '—',
+      lat: typeof a.lat==='number'?a.lat:null,
+      lng: typeof a.lng==='number'?a.lng:null
+    } : {
+      time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+      hazard, sev, msg, state: stateName||'', district: districtName||'', area
+    };
+    state.alerts.unshift(entry);
+    $('#alert-message').value=''; 
+    renderStats(); 
+    renderAlertFeed();
+    renderAlertMarkers();
+    alert(window.I18n ? I18n.t('alerts.broadcasted') : 'Alert broadcasted.');
+  }catch(err){
+    alert(err?.message || 'Failed to broadcast alert.');
+  }
 });
 
 // Assign task → state.tasks
@@ -850,18 +857,22 @@ document.addEventListener('click', (e) => {
 });
 
 // Verify approve/reject (delegated)
-document.addEventListener('click', (e)=>{
+document.addEventListener('click', async (e)=>{
   const btn=e.target.closest('button[data-act]'); 
   if(!btn) return;
 
   const i=+btn.dataset.idx;
   const act=btn.dataset.act;
 
-  if(act==='approve'){ 
-    state.verifyQueue[i].status='Verified'; 
-  }
-  if(act==='reject'){ 
-    state.verifyQueue.splice(i,1); 
+  if(act==='approve' || act==='reject'){
+    const r = state.verifyQueue[i];
+    if(!r) return;
+    try{
+  await window.API.reports.update(r.id, { status: act==='approve' ? 'Verified' : 'Rejected' });
+      // Fallback UI update (socket will handle ideal case)
+      if(act==='approve'){ state.verifyQueue[i].status='Verified'; }
+      if(act==='reject'){ state.verifyQueue.splice(i,1); }
+    }catch(err){ alert(err?.message || 'Failed to update report'); }
   }
 
   renderStats(); 
@@ -962,12 +973,97 @@ document.addEventListener('DOMContentLoaded', function() {
   // Optional: center one map to user location for demo
   geolocateAndCenter(maps.alerts || maps.resources || maps.reports, { silent: true });
 
+  // Load data from backend and subscribe to realtime updates
+  bootstrapDataAndSocket().catch(err => console.warn('Bootstrap failed', err));
+
   // Locate me buttons
   document.getElementById('locate-alerts')?.addEventListener('click', ()=> geolocateAndCenter(maps.alerts));
   document.getElementById('locate-reports')?.addEventListener('click', ()=> geolocateAndCenter(maps.reports));
   document.getElementById('locate-risk')?.addEventListener('click', ()=> geolocateAndCenter(maps.risk));
   document.getElementById('locate-resources')?.addEventListener('click', ()=> geolocateAndCenter(maps.resources));
 });
+
+async function bootstrapDataAndSocket(){
+  try{
+    // Shelters
+    const sheltersRes = await window.API.shelters.list();
+    if(Array.isArray(sheltersRes?.items)){
+      state.shelters = sheltersRes.items.map(s=>({ name:s.name, cap:s.capacity, avail:s.available, contact:s.contact }));
+      renderShelters();
+      renderShelterMarkers();
+    }
+  }catch{}
+  try{
+    // Alerts
+    const alertsRes = await window.API.alerts.list();
+    if(Array.isArray(alertsRes?.items)){
+      state.alerts = alertsRes.items.map(a=>({
+        time: new Date(a.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+        hazard: a.hazard,
+        sev: a.severity || 'Low',
+        msg: a.message,
+        state: a.state || '',
+        district: a.district || '',
+        area: a.area || '',
+        lat: typeof a.lat==='number'?a.lat:null,
+        lng: typeof a.lng==='number'?a.lng:null
+      }));
+      renderStats();
+      renderAlertFeed();
+      renderAlertMarkers();
+    }
+  }catch{}
+  try{
+    // Reports
+    const reportsRes = await window.API.reports.list();
+    if(Array.isArray(reportsRes?.items)){
+      state.verifyQueue = reportsRes.items.map(r=>({
+        id: r.id,
+        time: new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+        type: r.type,
+        loc: r.location,
+        status: r.status || 'Pending'
+      }));
+      renderStats();
+      renderVerify();
+      renderReportMarkers();
+    }
+  }catch{}
+
+  // Socket listeners for realtime updates
+  try{
+    const sock = await window.API.getSocket();
+    sock.on('alert:created', (a)=>{
+      const entry = {
+        time: new Date(a.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+        hazard: a.hazard, sev: a.severity||'Low', msg: a.message,
+        state: a.state||'', district: a.district||'', area: a.area||'',
+        lat: typeof a.lat==='number'?a.lat:null,
+        lng: typeof a.lng==='number'?a.lng:null
+      };
+      state.alerts.unshift(entry);
+      renderStats();
+      renderAlertFeed();
+      renderAlertMarkers();
+    });
+    sock.on('report:created', (r)=>{
+      state.verifyQueue.unshift({
+        id: r.id,
+        time: new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+        type: r.type, loc: r.location, status: r.status || 'Pending'
+      });
+      renderStats();
+      renderVerify();
+      renderReportMarkers();
+    });
+    sock.on('report:updated', (r)=>{
+      const idx = state.verifyQueue.findIndex(x=> x.id === r.id);
+      if(idx>=0){ state.verifyQueue[idx].status = r.status || 'Pending'; }
+      renderVerify();
+      renderReportMarkers();
+    });
+  }catch(err){ console.warn('Socket connect failed', err); }
+}
 
 // Init: hazard filters + broadcast select
 function initHazardFilters(){

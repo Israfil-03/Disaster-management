@@ -28,12 +28,32 @@
           <nav class="nav">
             <a class="nav-link" href="auth.html?mode=login" data-i18n="nav.login">Login</a>
             <a class="btn btn-primary" href="auth.html?mode=signup" data-i18n="nav.signup">Get started</a>
+            <a class="nav-link hidden" href="#" id="nav-logout" data-i18n="auth.btn.logout">Log out</a>
           </nav>
         </div>
       </div>
     </header>
 
     <main id="main" class="main">
+  <script>
+    // Show a simple logout link on landing if a session exists
+    (async function(){
+      try{
+        if(!window.API){
+          const s=document.createElement('script'); s.src='assets/apiClient.js?v=20250927'; document.head.appendChild(s);
+          await new Promise(r=> s.onload=r);
+        }
+        const me = await window.API.auth.me();
+        if(me && me.user){
+          const link = document.getElementById('nav-logout');
+          if(link){
+            link.style.display='inline-block';
+            link.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await window.API.auth.logout(); }catch{} window.location.href='auth.html?mode=login'; });
+          }
+        }
+      }catch{}
+    })();
+  </script>
       <section class="hero">
         <div class="wrap">
           <h1 data-i18n="hero.title">Trusted crisis information for every community</h1>

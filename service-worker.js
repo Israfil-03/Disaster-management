@@ -3,7 +3,7 @@
  * - Runtime cache for icons, CSS/JS, and map tiles
  * - Offline fallback for navigation requests
  */
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.0.2';
 const PRECACHE = `precache-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 
@@ -17,7 +17,9 @@ const PRECACHE_URLS = [
   'assets/landing.css',
   'assets/landing.js',
   'assets/auth.css',
+  'assets/config.js',
   'assets/auth.js',
+  'assets/apiClient.js',
   'assets/styles.css',
   'assets/app.js',
   'assets/i18n.js',
@@ -74,6 +76,11 @@ self.addEventListener('fetch', (event) => {
 
   // Ignore non-GET
   if (req.method !== 'GET') return;
+
+  // Bypass caching for API and Socket.IO (must be always-network)
+  if (url.origin === location.origin && (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io/'))) {
+    return; // let it pass through to network
+  }
 
   // Same-origin navigation requests: network-first -> offline
   if (req.mode === 'navigate') {

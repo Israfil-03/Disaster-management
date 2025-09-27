@@ -653,6 +653,9 @@ label{
   overflow:hidden
 }
 
+/* Utility: hidden (display none) */
+.hidden{ display:none !important; }
+
 /* For skip links */
 .sr-only.focusable:focus{
   position:static;

@@ -1,16 +1,6 @@
-// Production-ready auth flow with Supabase
+// Local backend auth (replaces Supabase)
 (function () {
   const alertBox = document.getElementById('auth-alert');
-  const supabase = window.supabaseClient;
-  if (!supabase) {
-    console.error('Supabase client not configured. Check assets/config.js.');
-    if (alertBox) {
-      alertBox.textContent = 'Supabase configuration missing. Update assets/config.js with your project URL and anon key.';
-      alertBox.classList.remove('hidden');
-    }
-    document.querySelector('.auth-card')?.classList.remove('js-init-hide');
-    return;
-  }
 
   const $ = (sel) => document.querySelector(sel);
   const loginTab = $('#tab-login');
@@ -124,13 +114,11 @@
 
   async function redirectIfAuthenticated() {
     try {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session) {
+      const me = await window.API.auth.me();
+      if (me?.user) {
         window.location.replace('AadhyaPath_dashboard.html');
       }
-    } catch (err) {
-      console.warn('Failed to read session', err);
-    }
+    } catch {}
   }
 
   async function handleLogin(event) {
@@ -145,36 +133,21 @@
     const submitBtn = /** @type {HTMLButtonElement|null} */ (loginPanel?.querySelector('button[type="submit"]') ?? null);
     setSubmitting(submitBtn, true, 'Log In', 'Signing in…');
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        const message = error.message || '';
-        if (/email/i.test(message) && /confirm/i.test(message)) {
-          showAlert('Your email address is not verified yet. Open the confirmation link sent by Supabase or disable email confirmation in your project settings.', 'info');
-        } else {
-          showAlert(message || 'Unable to sign in.');
-        }
-        return;
-      }
-      const user = data?.user;
-      let role = (user?.user_metadata?.role || '').toLowerCase() || 'citizen';
-      // If role is missing or inconsistent with domain, infer and persist
-      const inferred = inferRoleFromEmail(email);
-      if (role !== inferred) {
-        try { await supabase.auth.updateUser({ data: { role: inferred } }); } catch {}
-        role = inferred;
-      }
+      const res = await window.API.auth.login({ email, password });
+      const user = res?.user || {};
+      let role = (user.role || '').toLowerCase() || inferRoleFromEmail(email);
       if (!isDomainAllowedForRole(role, email)) {
-        await supabase.auth.signOut();
+        await window.API.auth.logout();
         const description = describeAllowedDomains(role);
         showAlert(`The email domain is not authorized for ${ROLE_LABELS[role] || role} accounts. Allowed domains: ${description}.`, 'info');
         return;
       }
-      const nextUrl = roleDashboardRoutes[role] || 'AadhyaPath_dashboard.html';
+      const nextUrl = (window.roleDashboardRoutes && window.roleDashboardRoutes[role]) || 'AadhyaPath_dashboard.html';
       showAlert('Login successful. Redirecting…', 'success');
       window.location.replace(nextUrl);
     } catch (err) {
       console.error(err);
-      showAlert('Unexpected error while signing in. Please try again.');
+      showAlert(err?.message || 'Unable to sign in.');
     } finally {
       setSubmitting(submitBtn, false, 'Log In', 'Signing in…');
     }
@@ -208,46 +181,14 @@
     setSubmitting(submitBtn, true, 'Create account', 'Creating…');
 
     try {
-      const redirectUrl = new URL('auth.html?mode=login', window.location.href).toString();
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-            role
-          },
-          emailRedirectTo: redirectUrl
-        }
-      });
-
-      if (error) {
-        showAlert(error.message || 'Unable to create account.');
-        return;
-      }
-
-      const userId = data?.user?.id;
-      if (userId) {
-        // Populate a row in profiles table (requires RLS policy allowing auth.uid() inserts)
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({ id: userId, full_name: name, role }, { onConflict: 'id' });
-        if (profileError) {
-          console.warn('Profile upsert failed', profileError);
-        }
-      }
-
-      if (data?.session) {
-        const nextUrl = roleDashboardRoutes[role] || 'AadhyaPath_dashboard.html';
-        showAlert('Account created. Redirecting…', 'success');
-        window.location.replace(nextUrl);
-      } else {
-        showAlert('Account created. Please verify your email inbox before logging in.', 'success');
-        setMode('login');
-      }
+      const res = await window.API.auth.signup({ email, password, full_name: name, role });
+      const nextUrl = (window.roleDashboardRoutes && window.roleDashboardRoutes[role]) || 'AadhyaPath_dashboard.html';
+      showAlert('Account created. Redirecting…', 'success');
+      window.location.replace(nextUrl);
     } catch (err) {
       console.error(err);
-      showAlert('Unexpected error while creating your account. Please try again.');
+      const msg = err?.message || 'Unable to create account.';
+      showAlert(msg);
     } finally {
       setSubmitting(submitBtn, false, 'Create account', 'Creating…');
     }
@@ -271,11 +212,4 @@
 
   // Redirect any existing session away from the auth screen
   redirectIfAuthenticated();
-
-  // Keep listening for auth state changes (e.g., email magic link in same tab)
-  supabase.auth.onAuthStateChange((_event, session) => {
-    if (session) {
-      window.location.replace('AadhyaPath_dashboard.html');
-    }
-  });
 })();
