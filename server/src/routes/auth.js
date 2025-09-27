@@ -6,7 +6,8 @@ const router = express.Router();
 
 // Make sure users table exists (best-effort)
 ensureUsersTable().catch((e) => {
-  console.error('Failed to ensure users table:', e);
+  console.error('Failed to ensure users table:', e.message);
+  console.warn('Database operations may fail. Please ensure PostgreSQL is running and configured.');
 });
 
 router.post('/signup', async (req, res) => {

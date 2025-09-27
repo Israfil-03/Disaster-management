@@ -67,9 +67,12 @@ try {
         analytics = getAnalytics(app);
       }
     })
-    .catch(() => {});
-} catch (_) {
+    .catch((error) => {
+      console.warn('Firebase Analytics not available:', error.message);
+    });
+} catch (error) {
   // Analytics not available in unsupported environments (e.g., http/local)
+  console.warn('Firebase Analytics initialization failed:', error.message);
 }
 
 // Re-export commonly used auth APIs

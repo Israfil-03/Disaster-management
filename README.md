@@ -80,24 +80,84 @@ Notes
 
 # Disaster-Management
 
-## Local backend (Node + PostgreSQL)
+## Database Setup & Troubleshooting
 
-This project now includes a minimal Node/Express backend with PostgreSQL for authentication.
+### PostgreSQL Setup
 
-Prereqs:
-- PostgreSQL running locally with a database `aadhya_path` and a `login` table (created automatically if missing)
-- Node.js 18+
+For full functionality, you'll need PostgreSQL running locally:
 
-Configure environment:
-1. Copy `server/.env.example` to `server/.env`
-2. Update `PGPASSWORD` with your local password
+1. **Install PostgreSQL** (if not already installed):
+   ```bash
+   # macOS (using Homebrew)
+   brew install postgresql
+   brew services start postgresql
+   
+   # Ubuntu/Debian
+   sudo apt-get update
+   sudo apt-get install postgresql postgresql-contrib
+   sudo systemctl start postgresql
+   
+   # Windows
+   # Download and install from: https://www.postgresql.org/download/windows/
+   ```
 
-Install deps and run:
+2. **Create Database** (optional - auto-created if missing):
+   ```bash
+   createdb aadhyapath
+   # OR
+   cd server && npm run db:create
+   ```
 
-```
-cd server
-npm install
-npm run start
+3. **Configure Environment** (server/.env):
+   ```env
+   PGHOST=localhost
+   PGPORT=5432
+   PGDATABASE=aadhyapath
+   PGUSER=postgres
+   PGPASSWORD=your_password_here
+   ```
+
+### Without Database
+
+The application will still work without PostgreSQL:
+- Frontend loads and functions correctly
+- Authentication falls back to local storage
+- Demo data provides full UI functionality
+- Some server API calls will fail gracefully
+
+### Common Issues & Solutions
+
+**Error: "ECONNREFUSED ::1:5432"**
+- PostgreSQL is not running or not accessible
+- Check if PostgreSQL service is started
+- Verify connection details in server/.env
+
+**Firebase Analytics Errors**
+- Normal in development environments
+- Analytics will be disabled automatically
+- No impact on core functionality
+
+**"API_BASE not set" Warning**
+- For local development, this is expected
+- For production, set the meta tag in HTML files
+
+### Development Workflow
+
+1. **Frontend only** (no database needed):
+   ```bash
+   python -m http.server 8080
+   # OR
+   npx serve .
+   ```
+
+2. **Full stack** (with database):
+   ```bash
+   # Terminal 1: Start backend
+   cd server && npm install && npm start
+   
+   # Terminal 2: Start frontend
+   python -m http.server 8080
+   ```
 ```
 
 By default, the server hosts the frontend at `http://localhost:5174/` and APIs under `/api/*`.
