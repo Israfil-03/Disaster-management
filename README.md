@@ -79,6 +79,41 @@ Notes
 - Large videos are streamed (Range requests) and not aggressively cached to avoid storage bloat.
 
 # Disaster-Management
+## Supabase setup (database, realtime, RLS)
+
+We migrated the app from Firebase to Supabase. To initialize the database and realtime policies:
+
+1) Install Supabase CLI
+	- Windows (PowerShell): `iwr https://repo.supabase.com/install/windows.ps1 -useb | iex`
+
+2) Login and link your project
+	- `supabase login`
+	- `supabase link --project-ref itniteawqzjuympwxorv` (replace with your project ref if different)
+
+3) Push the migration
+	- From the project root (this folder): `supabase db push`
+
+This applies `supabase/migrations/20250928_init.sql` which:
+	- Creates tables: alerts, reports, chat, profiles
+	- Enables Row Level Security and basic authenticated policies
+	- Adds tables to `supabase_realtime` publication for realtime updates
+
+4) In Supabase Dashboard
+	- Enable Email/Password auth provider (Authentication > Providers)
+	- Under Database > Replication, confirm the above tables are included in `supabase_realtime`
+
+5) Configure local `.env`
+	- In `server/.env`, set `DATABASE_URL` to your Supabase connection string (password URL-encoded). Example:
+	  - `DATABASE_URL=postgresql://postgres:Your%40EncodedPassword@db.<ref>.supabase.co:5432/postgres`
+
+6) Run locally
+	- In `server/`, `npm install` then `npm start`
+
+Troubleshooting
+	- If records appear then disappear on refresh, ensure the tables exist and you are logged in (RLS requires `authenticated`).
+	- If realtime doesn’t fire, confirm the tables are in the `supabase_realtime` publication and you used the anon public key on the frontend.
+	- If server cannot connect, verify DNS/vpn/firewall and that `sslmode=require` is used by default in driver (pg). The code enables SSL by default for managed hosts.
+
 
 ## Local backend (Node + PostgreSQL)
 

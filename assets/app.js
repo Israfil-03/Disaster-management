@@ -7,7 +7,7 @@ const state = {
   role: 'citizen',
   lang: 'en',
   theme: undefined, // 'light' | 'dark' | undefined (system)
-  // Community chat (simple local-first demo; replace with backend/Firebase later)
+  // Community chat (simple local-first demo; replaced with Supabase backend)
   chat: {
     // messages: [{ id, user, role, text, ts }]
     messages: []
@@ -689,13 +689,12 @@ function initChat(){
     const val = input?.value.trim();
     if(!val) return;
     try {
-      const mod = await import('./firebase.js');
+      const mod = await import('./supabase.js');
       const me = (()=>{ try{ const u=JSON.parse(localStorage.getItem('dm_user')||'{}'); return u; }catch{return{}} })();
       await mod.addDoc(mod.collection(mod.db, 'chat'), {
         text: val,
         user: me.displayName || me.email || 'Me',
         role: state.role,
-        ts: mod.serverTimestamp(),
       });
     } catch {
       pushChatMessage(val, { fromMe: true });
@@ -710,8 +709,8 @@ function initChat(){
     if(state.role === 'authority' || state.role === 'ndrf'){
       if(confirm(window.I18n ? I18n.t('chat.clearConfirm') : 'Clear chat for everyone? This removes all messages.')){
         try {
-          const mod = await import('./firebase.js');
-          await mod.addDoc(mod.collection(mod.db, 'chat'), { text: '[Chat cleared by officials]', role: 'authority', user: 'System', ts: mod.serverTimestamp() });
+          const mod = await import('./supabase.js');
+          await mod.addDoc(mod.collection(mod.db, 'chat'), { text: '[Chat cleared by officials]', role: 'authority', user: 'System' });
         } catch {}
         clearChatAll();
       }
@@ -806,15 +805,14 @@ $('#submit-report').addEventListener('click', async ()=>{
     return; 
   }
 
-  // Try to persist to Firestore; fallback to local state
+  // Try to persist to Supabase; fallback to local state
   try {
-    const mod = await import('./firebase.js');
+    const mod = await import('./supabase.js');
     await mod.addDoc(mod.collection(mod.db, 'reports'), {
       type,
       desc,
       loc,
       status: 'Pending',
-      ts: mod.serverTimestamp(),
     });
   } catch {
     state.verifyQueue.unshift({
@@ -847,19 +845,20 @@ $('#send-alert').addEventListener('click', async ()=>{
   const districtName = $('#alert-district')?.value || '';
   const area = districtName ? `${districtName}, ${stateName||''}`.trim() : (stateName || '—');
 
-  // Try Firestore write; fallback to local state
+  // Try Supabase write; fallback to local state
   try {
-    const mod = await import('./firebase.js');
-    await mod.addDoc(mod.collection(mod.db, 'alerts'), {
-      hazard,
-      sev,
-      msg,
-      state: stateName || '',
-      district: districtName || '',
-      area,
-      ts: mod.serverTimestamp(),
-    });
-  } catch {
+    const mod = await import('./supabase.js');
+    if (typeof mod.insertAlert === 'function') {
+      await mod.insertAlert({ hazard, sev, msg, state: stateName || '', district: districtName || '', area });
+    } else {
+      await mod.addDoc(mod.collection(mod.db, 'alerts'), { hazard, sev, msg, state: stateName || '', district: districtName || '', area });
+    }
+  } catch (err) {
+    // Warn: this will not persist for others unless DB insert succeeds
+    try {
+      const message = (err && err.message) ? String(err.message) : 'Unable to write to database. The alert may not persist across refresh.';
+      alert(`${message}\nA local-only fallback will be shown, but others won’t see it until you sign in.`);
+    } catch {}
     state.alerts.unshift({
       time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
       hazard,
@@ -908,10 +907,35 @@ document.addEventListener('click', async (e)=>{
 
   try {
     const item = state.verifyQueue[i];
-    const mod = await import('./firebase.js');
+    const mod = await import('./supabase.js');
     if(item && item.id){
       const ref = mod.doc(mod.db, 'reports', item.id);
-      if(act==='approve') await mod.updateDoc(ref, { status: 'Verified', updatedAt: mod.serverTimestamp() });
+      if(act==='approve') {
+        // Mark report as verified
+        await mod.updateDoc(ref, { status: 'Verified', updatedAt: mod.serverTimestamp() });
+        // Also create a public alert for citizens
+        try {
+          const msg = (item.desc && item.desc.trim()) ? item.desc.trim() : `Verified ${item.type} reported at ${item.loc}`;
+          if (typeof mod.insertAlert === 'function') {
+            await mod.insertAlert({ hazard: item.type || 'Alert', sev: 'Medium', msg, state: '', district: '', area: item.loc || '' });
+          } else {
+            await mod.addDoc(mod.collection(mod.db, 'alerts'), { hazard: item.type || 'Alert', sev: 'Medium', msg, state: '', district: '', area: item.loc || '' });
+          }
+        } catch {
+          // Local-only fallback so officials see it instantly if DB insert fails
+          state.alerts.unshift({
+            time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
+            hazard: item.type || 'Alert',
+            sev: 'Medium',
+            msg: item.desc || `Verified ${item.type} at ${item.loc}`,
+            state: '',
+            district: '',
+            area: item.loc || ''
+          });
+          renderStats();
+          renderAlertFeed();
+        }
+      }
       if(act==='reject') await mod.deleteDoc(ref);
       return; // UI will refresh from snapshot
     }
@@ -1026,60 +1050,73 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('locate-risk')?.addEventListener('click', ()=> geolocateAndCenter(maps.risk));
   document.getElementById('locate-resources')?.addEventListener('click', ()=> geolocateAndCenter(maps.resources));
 
-  // Firestore real-time listeners (optional)
+  // Supabase real-time listeners (optional)
   (async ()=>{
     try {
-      const mod = await import('./firebase.js');
-      // Alerts: newest first
-      const alertsQ = mod.query(mod.collection(mod.db, 'alerts'), mod.orderBy('ts','desc'), mod.limit(100));
-      mod.onSnapshot(alertsQ, (snap)=>{
-        const items = [];
-        snap.forEach(doc=>{
-          const d = doc.data();
-          items.push({
-            id: doc.id,
-            time: d?.ts?.toDate ? d.ts.toDate().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '',
-            hazard: d?.hazard || 'Alert',
-            sev: d?.sev || 'Low',
-            msg: d?.msg || '',
-            state: d?.state || '',
-            district: d?.district || '',
-            area: d?.area || '',
-            lat: d?.lat,
-            lng: d?.lng,
-          });
-        });
-        state.alerts = items;
-        renderStats();
-        renderAlertFeed();
+      const mod = await import('./supabase.js');
+
+      // Initial fetch
+      const [alerts0, reports0, chat0] = await Promise.all([
+        mod.fetchLatest('alerts', { limit: 100, order: 'ts', ascending: false }),
+        mod.fetchLatest('reports', { limit: 200, order: 'ts', ascending: false }),
+        mod.fetchLatest('chat', { limit: 200, order: 'ts', ascending: true }),
+      ]);
+
+      state.alerts = (alerts0 || []).map((d)=>({
+        id: d.id,
+        time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '',
+        hazard: d.hazard || 'Alert',
+        sev: (d.sev ?? d.severity ?? 'Low'),
+        msg: (d.msg ?? d.message ?? ''),
+        state: d.state || '', district: d.district || '', area: d.area || '', lat: d.lat, lng: d.lng
+      }));
+  state.verifyQueue = (reports0 || []).map((d)=>({ id: d.id, time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '', type: d.type || '', loc: d.loc || '', status: d.status || 'Pending', desc: d.desc || '' }));
+      state.chat.messages = (chat0 || []).map((d)=>({ id: d.id, user: d.user || 'Anon', role: d.role || '', text: d.text || '', ts: d.ts ? new Date(d.ts).getTime() : Date.now() }));
+      persistChat();
+      renderStats();
+      renderAlertFeed();
+      renderVerify();
+      renderReportMarkers();
+      renderChat();
+
+      // Realtime subscriptions
+      const unsubAlerts = mod.subscribeTable('alerts', async (_evt) => {
+        try {
+          const latest = await mod.fetchLatest('alerts', { limit: 100, order: 'ts', ascending: false });
+          state.alerts = (latest || []).map((d)=>({
+            id: d.id,
+            time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '',
+            hazard: d.hazard || 'Alert',
+            sev: (d.sev ?? d.severity ?? 'Low'),
+            msg: (d.msg ?? d.message ?? ''),
+            state: d.state || '', district: d.district || '', area: d.area || '', lat: d.lat, lng: d.lng
+          }));
+          renderStats();
+          renderAlertFeed();
+        } catch {}
       });
 
-      // Reports: newest first
-      const reportsQ = mod.query(mod.collection(mod.db, 'reports'), mod.orderBy('ts','desc'), mod.limit(200));
-      mod.onSnapshot(reportsQ, (snap)=>{
-        const items = [];
-        snap.forEach(doc=>{
-          const d = doc.data();
-          items.push({ id: doc.id, time: d?.ts?.toDate ? d.ts.toDate().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '', type: d?.type || '', loc: d?.loc || '', status: d?.status || 'Pending' });
-        });
-        state.verifyQueue = items;
-        renderStats();
-        renderVerify();
-        renderReportMarkers();
+      const unsubReports = mod.subscribeTable('reports', async (_evt) => {
+        try {
+          const latest = await mod.fetchLatest('reports', { limit: 200, order: 'ts', ascending: false });
+          state.verifyQueue = (latest || []).map((d)=>({ id: d.id, time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '', type: d.type || '', loc: d.loc || '', status: d.status || 'Pending', desc: d.desc || '' }));
+          renderStats();
+          renderVerify();
+          renderReportMarkers();
+        } catch {}
       });
 
-      // Chat: chronological order
-      const chatQ = mod.query(mod.collection(mod.db, 'chat'), mod.orderBy('ts','asc'), mod.limit(200));
-      mod.onSnapshot(chatQ, (snap)=>{
-        const msgs = [];
-        snap.forEach(doc=>{
-          const d = doc.data();
-          msgs.push({ id: doc.id, user: d?.user || 'Anon', role: d?.role || '', text: d?.text || '', ts: d?.ts?.toDate ? d.ts.toDate().getTime() : Date.now() });
-        });
-        state.chat.messages = msgs;
-        persistChat();
-        renderChat();
+      const unsubChat = mod.subscribeTable('chat', async (_evt) => {
+        try {
+          const latest = await mod.fetchLatest('chat', { limit: 200, order: 'ts', ascending: true });
+          state.chat.messages = (latest || []).map((d)=>({ id: d.id, user: d.user || 'Anon', role: d.role || '', text: d.text || '', ts: d.ts ? new Date(d.ts).getTime() : Date.now() }));
+          persistChat();
+          renderChat();
+        } catch {}
       });
+
+      // Clean up on unload
+      window.addEventListener('beforeunload', () => { try{unsubAlerts();unsubReports();unsubChat();}catch{} });
     } catch (err) {
       console.warn('Firestore not initialized; continuing with local demo data.', err);
     }

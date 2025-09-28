@@ -1,0 +1,3 @@
+-- Placeholder for remote migration 20250926165902
+-- This file exists locally to align with the project's remote migration history.
+-- No-op.
