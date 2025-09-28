@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import authRouter from './routes/auth.js';
+import volunteerRouter from './routes/volunteers.js';
 import { healthCheck as dbHealthCheck } from './lib/db.js';
 
 dotenv.config();
@@ -11,7 +12,7 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
+export const app = express();
 
 const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(cors({
@@ -27,6 +28,7 @@ app.use(express.json());
 
 // API routes
 app.use('/api/auth', authRouter);
+app.use('/api/volunteers', volunteerRouter);
 
 // Health endpoint including DB status
 app.get('/api/health', async (req, res) => {
@@ -45,6 +47,10 @@ app.get('/', (req, res) => {
 });
 
 const port = process.env.PORT || 5174;
-app.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Server listening on http://localhost:${port}`);
+  });
+}
+
+export default app;

@@ -2,6 +2,114 @@
 const $ = (q) => document.querySelector(q);
 const $$ = (q) => Array.from(document.querySelectorAll(q));
 
+function apiBase(){
+  const base = window.API_BASE || '';
+  return base ? base.replace(/\/$/, '') : '';
+}
+
+let supabaseModulePromise = null;
+async function getSupabaseModule(){
+  if(!supabaseModulePromise){
+    supabaseModulePromise = import('./supabase.js').catch(()=>null);
+  }
+  return supabaseModulePromise;
+}
+
+async function getSupabaseToken(){
+  try{
+    const mod = await getSupabaseModule();
+    if(!mod) return null;
+    const { data } = await mod.supabase.auth.getSession();
+    return data?.session?.access_token || null;
+  }catch{
+    return null;
+  }
+}
+
+const VOLUNTEER_TABLE = 'volunteer_applications';
+
+function coerceSkillList(value){
+  if(Array.isArray(value)){
+    return value.map((skill)=> String(skill || '').trim()).filter(Boolean);
+  }
+  if(typeof value === 'string'){
+    return value.split(',').map((skill)=> skill.trim()).filter(Boolean);
+  }
+  if(typeof value === 'object' && value !== null && Array.isArray(value.skills)){
+    return coerceSkillList(value.skills);
+  }
+  return [];
+}
+
+function mapVolunteerRow(row){
+  if(!row) return null;
+  const fullName = row.full_name || row.fullName || row.name || '';
+  const normalizedSkills = coerceSkillList(row.skills ?? row.skill ?? row.skills_list);
+  return {
+    id: row.id,
+    fullName,
+    name: fullName,
+    email: row.email || '',
+    phone: row.phone || '',
+    skills: normalizedSkills,
+    availability: row.availability || '',
+    preferredLocation: row.preferred_location || row.preferredLocation || row.location || '',
+    motivation: row.motivation || '',
+    status: row.status || 'pending',
+    createdAt: row.created_at || row.createdAt || row.ts || null,
+    reviewedAt: row.reviewed_at || row.reviewedAt || null,
+    reviewedBy: row.reviewed_by || row.reviewedBy || null,
+    notes: row.notes || '',
+    createdBy: row.created_by || row.createdBy || null,
+    actionStatus: row.action_status || row.actionStatus || null
+  };
+}
+
+function supabaseErrorMessage(error, fallback = 'Unexpected error'){
+  if(!error) return fallback;
+  return error.message || error.error_description || error.details || error.hint || fallback;
+}
+
+let volunteerRealtimeUnsub = null;
+let volunteerRefreshTimeoutId = null;
+
+async function apiFetch(path, { method = 'GET', headers = {}, body, auth = false, signal } = {}){
+  const base = apiBase();
+  // Allow relative paths when base is not configured for local development
+  const url = base 
+    ? `${base}${path.startsWith('/') ? path : `/${path}`}`
+    : path.startsWith('/') ? path : `/${path}`;
+  const init = { method, headers: { ...headers }, credentials: 'include', signal };
+  if(body instanceof FormData){
+    init.body = body;
+  } else if(body !== undefined){
+    init.headers['Content-Type'] = init.headers['Content-Type'] || 'application/json';
+    init.body = typeof body === 'string' ? body : JSON.stringify(body);
+  }
+  if(auth){
+    const token = await getSupabaseToken();
+    if(!token){
+      throw new Error('Authorization required but no active session found.');
+    }
+    init.headers.Authorization = `Bearer ${token}`;
+  }
+  const res = await fetch(url, init);
+  return res;
+}
+
+async function fetchJson(path, options){
+  const res = await apiFetch(path, options);
+  const data = await res.json().catch(()=>null);
+  if(!res.ok){
+    const error = (data && (data.error || data.message)) || res.statusText;
+    const err = new Error(error);
+    err.status = res.status;
+    err.payload = data;
+    throw err;
+  }
+  return data;
+}
+
 
 const state = {
   role: 'citizen',
@@ -17,7 +125,9 @@ const state = {
     // Demo entries include approximate coordinates for mapping
     {time:'14:05', hazard:'Heavy Rain', sev:'High', msg:'Red alert: Heavy rainfall expected next 12h', state:'Kerala', district:'Alappuzha', area:'Alappuzha, Kerala', lat:9.4981, lng:76.3388},
     {time:'13:40', hazard:'Flood', sev:'Medium', msg:'River level rising, avoid low-lying zones', state:'Bihar', district:'Saharsa', area:'Saharsa, Bihar', lat:25.8793, lng:86.5961},
-    {time:'13:10', hazard:'Heatwave', sev:'Low', msg:'Heat advisory lifted for today', state:'Maharashtra', district:'Nagpur', area:'Nagpur, Maharashtra', lat:21.1458, lng:79.0882}
+    {time:'13:18', hazard:'Earthquake', sev:'Severe', msg:'4.9 magnitude tremor felt. Inspect structures for damage.', state:'Sikkim', district:'Mangan', area:'North Sikkim', lat:27.6106, lng:88.4647},
+    {time:'13:10', hazard:'Heatwave', sev:'Low', msg:'Heat advisory lifted for today', state:'Maharashtra', district:'Nagpur', area:'Nagpur, Maharashtra', lat:21.1458, lng:79.0882},
+    {time:'12:48', hazard:'Drought', sev:'Medium', msg:'Reservoir levels below 30%. Initiate water rationing advisories.', state:'Karnataka', district:'Koppal', area:'Koppal, Karnataka', lat:15.3540, lng:76.1558}
   ],
   verifyQueue: [
     {time:'14:00', type:'Flood', loc:'Khagaria – Rampur', status:'Pending'},
@@ -34,13 +144,84 @@ const state = {
     {id:'#B341', type:'Water', status:'Loaded', eta:'16:30'},
     {id:'#M220', type:'Medicines', status:'At depot', eta:'—'}
   ],
-  volunteers: [
-    {name:'Name 1', skill:'First Aid', area:'Ward 11', status:'Available'},
-    {name:'Name 2', skill:'Logistics', area:'Ward 9', status:'Busy'},
-    {name:'Name 3', skill:'Search & Rescue', area:'Ward 13', status:'Available'}
+  volunteers: [],
+  volunteerApplications: [],
+  tasks:[],
+  resourceCenters: [
+    { name: 'Community Kitchen', type: 'food', lat: 19.0760, lng: 72.8777, details: 'Hot meals three times a day', contact: '+91-22-5551-0101' },
+    { name: 'Field Medical Camp', type: 'medicine', lat: 28.6139, lng: 77.2090, details: '24/7 paramedic support', contact: '+91-11-2201-4422' },
+    { name: 'Temporary Relief Depot', type: 'supply', lat: 12.9716, lng: 77.5946, details: 'Dry ration and water stock', contact: '+91-80-3300-9988' },
+    { name: 'Cyclone Shelter Complex', type: 'shelter', lat: 21.4942, lng: 86.9313, details: 'Reinforced shelter with 600 bed capacity', contact: '+91-674-228-1122' }
   ],
-  tasks:[]
+  hazardHotspots: [
+    { name: 'Seismic Zone V Monitoring Post', type: 'earthquake', lat: 28.2740, lng: 83.9721, details: 'Seismic sensors watching Himalayan fault line', advisory: 'Inspect lifeline infrastructure, be ready for aftershocks.' },
+    { name: 'Bundelkhand Drought Watch', type: 'drought', lat: 25.4358, lng: 80.3319, details: 'Remote sensing indicates soil moisture deficit', advisory: 'Trigger tanker supply plans and community messaging.' },
+    { name: 'Mega Relief Warehouse', type: 'food', lat: 22.3072, lng: 73.1812, details: 'Bulk food grains and ready-to-eat meals', advisory: 'Coordinate last mile delivery partners.' },
+    { name: 'Mobile Field Hospital', type: 'medicine', lat: 13.3392, lng: 77.1135, details: 'Surgical unit with trauma specialists', advisory: 'Pre-register critical cases and blood donors.' },
+    { name: 'Multi-purpose Cyclone Shelter', type: 'shelter', lat: 19.8122, lng: 85.8283, details: 'Raised platform shelter with resilient power', advisory: 'Activate evac shuttles for coastal hamlets.' }
+  ]
 };
+
+function isAdminRole(role = state.role){
+  return role === 'authority' || role === 'ndrf';
+}
+
+const VOLUNTEER_SKILLS = [
+  { id: 'first-aid', label: 'First Aid & CPR' },
+  { id: 'logistics', label: 'Logistics & Supply Chain' },
+  { id: 'search-rescue', label: 'Search & Rescue' },
+  { id: 'medical', label: 'Medical / Nursing' },
+  { id: 'counselling', label: 'Psychological Support' },
+  { id: 'tech-maps', label: 'GIS / Mapping' },
+  { id: 'communications', label: 'Radio / Communications' },
+  { id: 'community', label: 'Community Outreach' }
+];
+
+const MAP_ICON_ASSETS = {
+  location: 'location.png',
+  shelter: 'shelter.png',
+  food: 'food.png',
+  supply: 'food.png',
+  medical: 'hospital.png',
+  medicine: 'hospital.png',
+  drought: 'drought.png',
+  flood: 'flood.png',
+  earthquake: 'earthquake.png'
+};
+
+const HAZARD_ICON_LOOKUP = {
+  Flood: 'flood',
+  'Heavy Rain': 'flood',
+  Cyclone: 'flood',
+  Tsunami: 'flood',
+  Storm: 'flood',
+  Drought: 'drought',
+  Heatwave: 'drought',
+  'Cold Wave': 'drought',
+  Earthquake: 'earthquake',
+  Landslide: 'earthquake',
+  Avalanche: 'earthquake',
+  Health: 'medical',
+  Fire: 'supply',
+  'Forest Fire': 'supply'
+};
+
+const mapIconCache = new Map();
+function getMapIcon(name) {
+  if (typeof L === 'undefined') return null;
+  const asset = MAP_ICON_ASSETS[name] || MAP_ICON_ASSETS.location;
+  const cacheKey = asset;
+  if (mapIconCache.has(cacheKey)) return mapIconCache.get(cacheKey);
+  const icon = L.icon({
+    iconUrl: `assets/map_icon/${asset}`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 34],
+    popupAnchor: [0, -28],
+    className: 'map-marker-icon'
+  });
+  mapIconCache.set(cacheKey, icon);
+  return icon;
+}
 
 // Hazards we support for filtering and reporting
 // Note: keep this in sync with report-type options for consistency
@@ -123,7 +304,7 @@ async function applyIcons(root=document){
 // Maps (Leaflet)
 // =======================
 let maps = { alerts: null, reports: null, risk: null, resources: null };
-let layers = { alerts: null, reports: null, shelters: null };
+let layers = { alerts: null, reports: null, shelters: null, resourceCenters: null, riskHotspots: null };
 let clusters = { alerts: null };
 // Track a per-map "you are here" marker so we can update instead of duplicating
 let myLocationMarkers = { alerts: null, reports: null, risk: null, resources: null };
@@ -171,6 +352,8 @@ function initMaps(){
   }
   if(maps.reports && !layers.reports) layers.reports = L.layerGroup().addTo(maps.reports);
   if(maps.resources && !layers.shelters) layers.shelters = L.layerGroup().addTo(maps.resources);
+  if(maps.resources && !layers.resourceCenters) layers.resourceCenters = L.layerGroup().addTo(maps.resources);
+  if(maps.risk && !layers.riskHotspots) layers.riskHotspots = L.layerGroup().addTo(maps.risk);
 }
 
 function colorForSeverity(sev){
@@ -192,11 +375,13 @@ function renderAlertMarkers(){
   const points = [];
   filtered.forEach(a=>{
     if(typeof a.lat === 'number' && typeof a.lng === 'number'){
-      const style = { radius: 7, color: colorForSeverity(a.sev), fillColor: colorForSeverity(a.sev), fillOpacity: 0.85, weight: 1 };
       const hz = (window.I18n ? I18n.t('hazards.'+a.hazard) : a.hazard);
       const sevKey = 'severity.' + String(a.sev||'').toLowerCase();
       const sev = (window.I18n ? I18n.t(sevKey) : a.sev);
-      const marker = L.circleMarker([a.lat, a.lng], style).bindPopup(`<strong>${hz}</strong> (${sev})<br>${a.msg}<br><small>${a.area}</small>`);
+      const iconKey = HAZARD_ICON_LOOKUP[a.hazard] || 'location';
+      const icon = getMapIcon(iconKey);
+      const marker = L.marker([a.lat, a.lng], { icon: icon || undefined, title: hz })
+        .bindPopup(`<strong>${hz}</strong> (${sev})<br>${a.msg}<br><small>${a.area}</small>`);
       if(clusters.alerts) clusters.alerts.addLayer(marker); else layers.alerts.addLayer(marker);
       points.push([a.lat, a.lng]);
     }
@@ -218,13 +403,10 @@ function renderReportMarkers(){
   state.verifyQueue.forEach((r,i)=>{
     const m = seed[i % seed.length];
     if(m){
-      const marker = L.circleMarker([m.lat, m.lng], {
-        radius: 6,
-        color: '#38bdf8',
-        fillColor: '#38bdf8',
-        fillOpacity: 0.85,
-        weight: 1
-      }).bindPopup(() => {
+      const iconKey = HAZARD_ICON_LOOKUP[r.type] || 'location';
+      const icon = getMapIcon(iconKey);
+      const marker = L.marker([m.lat, m.lng], { icon: icon || undefined })
+        .bindPopup(() => {
         const typeLabel = (window.I18n ? I18n.t('hazards.'+r.type) : r.type);
         const statusKey = 'status.' + String(r.status||'').toLowerCase();
         const statusLabel = (window.I18n ? (I18n.t(statusKey) || r.status) : r.status);
@@ -279,6 +461,13 @@ function renderRoleBadge(){
     rs.title = locked ? 'Role is assigned based on your account' : 'Select user role';
     // Optionally hide the control when locked to avoid confusion
     rs.style.display = locked ? 'none' : '';
+  }
+
+  if(isAdminRole(state.role)){
+    loadPendingVolunteerApplications({ silent: true });
+  } else if(state.volunteerApplications.length){
+    state.volunteerApplications = [];
+    renderVolunteerApplications();
   }
 }
 
@@ -376,39 +565,56 @@ function renderVerify(){
     const typeLabel = (window.I18n ? I18n.t('hazards.'+r.type) : r.type);
     const statusKey = 'status.' + String(r.status||'').toLowerCase();
     const statusLabel = (window.I18n ? (I18n.t(statusKey) || r.status) : r.status);
+    const isPending = !r.status || /pending/i.test(r.status);
     tb.insertAdjacentHTML('beforeend', `<tr>
-      <td>${r.time}</td><td>${typeLabel}</td><td>${r.loc}</td><td>${statusLabel}</td>
+      <td>${r.time}</td><td>${typeLabel}</td><td>${r.loc}</td><td>${statusLabel || (window.I18n ? I18n.t('status.pending') : 'Pending')}</td>
       <td>
-        <button class="btn brand" data-act="approve" data-idx="${i}">${window.I18n ? I18n.t('btn.approve') : 'Approve'}</button>
-        <button class="btn" data-act="reject" data-idx="${i}">${window.I18n ? I18n.t('btn.reject') : 'Reject'}</button>
+        ${isPending ? `
+          <button class="btn brand" data-act="approve" data-idx="${i}">${window.I18n ? I18n.t('btn.approve') : 'Approve'}</button>
+          <button class="btn danger" data-act="reject" data-idx="${i}">${window.I18n ? I18n.t('btn.reject') : 'Reject'}</button>
+        ` : `<span class="muted">${window.I18n ? I18n.t('status.reviewed') || 'Reviewed' : 'Reviewed'}</span>`}
       </td></tr>`);
   });
 }
 
 // Render: volunteers + dropdown
 function renderVolunteers(){
-  const tb = $('#volunteer-list'); 
+  const tb = $('#volunteer-list');
+  if(!tb) return;
   tb.innerHTML='';
-  const sel = $('#task-volunteer'); 
+  const volunteers = Array.isArray(state.volunteers) ? state.volunteers : [];
+  const sel = $('#task-volunteer');
   if(sel) {
     sel.innerHTML=`<option value="">${window.I18n ? I18n.t('common.select') : 'Select'}</option>`;
   }
 
-  state.volunteers.forEach(v=>{
-    const skillLabel = (window.I18n ? (I18n.t('skills.' + v.skill) || v.skill) : v.skill);
-    const statusKey = 'status.' + String(v.status||'').toLowerCase();
-    const statusLabel = (window.I18n ? (I18n.t(statusKey) || v.status) : v.status);
-    let areaLabel = v.area;
-    if(window.I18n && typeof v.area === 'string'){
-      const m = v.area.match(/^\s*(Ward)\s+(\d+)\s*$/i);
-      if(m){ areaLabel = `${I18n.t('area.ward')} ${m[2]}`; }
+  if(volunteers.length === 0){
+    tb.insertAdjacentHTML('beforeend', `<tr><td colspan="4" class="muted">${window.I18n ? (I18n.t('volunteer.board.empty') || 'No approved volunteers yet.') : 'Volunteer approvals pending review.'}</td></tr>`);
+    renderTasks();
+    return;
+  }
+
+  volunteers.forEach(v=>{
+    const skills = Array.isArray(v.skills) ? v.skills : (v.skill ? [v.skill] : []);
+    const skillLabel = skills.length ? skills.join(', ') : (window.I18n ? I18n.t('common.na') || '—' : '—');
+    const areaRaw = v.preferredLocation || v.area || '';
+    const areaLabel = areaRaw ? areaRaw : (window.I18n ? (I18n.t('common.na') || '—') : '—');
+    // Normalize status display - show "Approved" instead of raw status
+    const rawStatus = String(v.status || '').toLowerCase();
+    let statusLabel = 'Volunteer';
+    if(rawStatus.includes('approved') || rawStatus.includes('active')) {
+      statusLabel = window.I18n ? (I18n.t('status.approved') || 'Approved') : 'Approved';
+    } else if(rawStatus.includes('pending')) {
+      statusLabel = window.I18n ? (I18n.t('status.pending') || 'Pending') : 'Pending';
+    } else if(v.status) {
+      statusLabel = String(v.status).charAt(0).toUpperCase() + String(v.status).slice(1).toLowerCase();
     }
-    tb.insertAdjacentHTML('beforeend', `<tr><td>${v.name}</td><td>${skillLabel}</td><td>${areaLabel}</td><td>${statusLabel}</td></tr>`);
+    tb.insertAdjacentHTML('beforeend', `<tr><td>${v.name || v.fullName || '—'}</td><td>${skillLabel}</td><td>${areaLabel}</td><td>${statusLabel}</td></tr>`);
     if(sel) {
-      const opt = document.createElement('option'); 
-      opt.value=v.name; 
-      opt.textContent=v.name; 
-      sel.appendChild(opt);
+      const opt = document.createElement('option');
+      opt.value = v.name || v.fullName || '';
+      opt.textContent = v.name || v.fullName || '';
+      if(opt.value) sel.appendChild(opt);
     }
   });
   renderTasks();
@@ -424,6 +630,350 @@ function renderTasks(){
     const statusLabel = (window.I18n ? (I18n.t(statusKey) || t.status) : t.status);
     tb.insertAdjacentHTML('beforeend', `<tr><td>${t.title}</td><td>${t.assignee}</td><td>${statusLabel}</td></tr>`);
   });
+}
+
+let volunteerModalLastFocus = null;
+let volunteerModalInitialized = false;
+
+function setVolunteerFeedback(type, message){
+  const feedback = $('#volunteer-feedback');
+  if(!feedback) return;
+  feedback.className = 'form-feedback';
+  if(type) feedback.classList.add(type);
+  feedback.textContent = message || '';
+}
+
+function openVolunteerModal(){
+  const modal = $('#volunteer-modal');
+  if(!modal) return;
+  volunteerModalLastFocus = document.activeElement;
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('modal-open');
+  setVolunteerFeedback(null, '');
+  $('#volunteer-name')?.focus();
+}
+
+function closeVolunteerModal(){
+  const modal = $('#volunteer-modal');
+  if(!modal) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('modal-open');
+  setVolunteerFeedback(null, '');
+  if(volunteerModalLastFocus && typeof volunteerModalLastFocus.focus === 'function'){
+    volunteerModalLastFocus.focus();
+  }
+}
+
+function initVolunteerModal(){
+  if(volunteerModalInitialized) return;
+  const modal = $('#volunteer-modal');
+  const openBtn = $('#volunteer-open');
+  const form = $('#volunteer-form');
+  if(!modal || !openBtn || !form) return;
+  const skillsContainer = $('#volunteer-skills');
+  if(skillsContainer){
+    skillsContainer.innerHTML = VOLUNTEER_SKILLS.map(skill=>`
+      <label><input type="checkbox" name="skills" value="${skill.label}" data-skill-id="${skill.id}"> ${skill.label}</label>
+    `).join('');
+  }
+  openBtn.addEventListener('click', openVolunteerModal);
+  modal.querySelector('[data-dismiss]')?.addEventListener('click', closeVolunteerModal);
+  $('#volunteer-close')?.addEventListener('click', closeVolunteerModal);
+  $('#volunteer-cancel')?.addEventListener('click', closeVolunteerModal);
+  modal.addEventListener('keydown', (e)=>{ if(e.key === 'Escape'){ e.preventDefault(); closeVolunteerModal(); } });
+  form.addEventListener('submit', handleVolunteerSubmit);
+  volunteerModalInitialized = true;
+}
+
+function normalizePhone(phone){
+  return String(phone || '').replace(/[^+\d]/g, '');
+}
+
+async function handleVolunteerSubmit(event){
+  event.preventDefault();
+  const form = event.target;
+  const fullName = form.fullName?.value?.trim() || '';
+  const email = form.email?.value?.trim() || '';
+  const phoneRaw = form.phone?.value?.trim() || '';
+  const phone = normalizePhone(phoneRaw);
+  const availability = form.availability?.value || '';
+  const preferredLocation = form.preferredLocation?.value?.trim() || '';
+  const motivation = form.motivation?.value?.trim() || '';
+  const skills = Array.from(form.querySelectorAll('input[name="skills"]:checked')).map((n)=> n.value.trim()).filter(Boolean);
+
+  if(fullName.length < 2){ setVolunteerFeedback('error', 'Please enter your full name.'); return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ setVolunteerFeedback('error', 'Please enter a valid email.'); return; }
+  if(phone.length < 6){ setVolunteerFeedback('error', 'Please enter a contact number we can reach you on.'); return; }
+  if(!skills.length){ setVolunteerFeedback('error', 'Select at least one skill you can offer.'); return; }
+  if(!availability){ setVolunteerFeedback('error', 'Let us know when you are available.'); return; }
+
+  setVolunteerFeedback(null, 'Submitting your application…');
+
+  try{
+    const token = await getSupabaseToken();
+    if(!token){
+      throw new Error('Please sign in again before submitting your volunteer application.');
+    }
+
+    const payload = {
+      fullName,
+      email,
+      phone,
+      skills,
+      availability,
+      preferredLocation,
+      motivation,
+    };
+
+    const response = await fetchJson('/api/volunteers/apply', {
+      method: 'POST',
+      body: payload,
+      auth: true,
+    });
+
+    const saved = mapVolunteerRow(response?.application);
+
+    setVolunteerFeedback('success', 'Application received! We will get back to you shortly.');
+    form.reset();
+    form.querySelectorAll('input[name="skills"]').forEach((el)=>{ el.checked = false; });
+    window.notifications?.success('✅ Volunteer application submitted! Our team will review it shortly.');
+
+    if(saved){
+      state.volunteerApplications = [saved, ...state.volunteerApplications];
+      renderVolunteerApplications();
+    }
+
+    scheduleVolunteerRefresh({ immediate: true, silent: true });
+    setTimeout(closeVolunteerModal, 1200);
+    return saved;
+  }catch(error){
+    console.error('Volunteer submit failed:', error);
+    const message = supabaseErrorMessage(error, 'Unable to submit application right now.');
+    setVolunteerFeedback('error', message);
+    window.notifications?.error(message);
+    throw error;
+  }
+}
+
+function updateVolunteerApplicationsMessage(type, text, { lock = false } = {}){
+  const el = $('#volunteer-applications-message');
+  if(!el) return;
+  if(lock){
+    el.dataset.locked = '1';
+  } else {
+    delete el.dataset.locked;
+  }
+  el.textContent = text || '';
+  if(type === 'error') el.classList.add('error');
+  else el.classList.remove('error');
+}
+
+function renderVolunteerApplications(){
+  const tbody = $('#volunteer-applications');
+  if(!tbody) return;
+  tbody.innerHTML = '';
+  const apps = Array.isArray(state.volunteerApplications) ? state.volunteerApplications : [];
+  const messageEl = $('#volunteer-applications-message');
+  const messageLocked = messageEl?.dataset?.locked === '1';
+  if(apps.length === 0){
+    if(!messageLocked){
+      updateVolunteerApplicationsMessage(null, 'No pending applications. New submissions will appear here.');
+    }
+    return;
+  }
+  if(!messageLocked){
+    updateVolunteerApplicationsMessage(null, '');
+  }
+  apps.forEach((app)=>{
+    const skills = Array.isArray(app.skills) ? app.skills.join(', ') : '—';
+    const submitted = app.createdAt ? new Date(app.createdAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+    const contact = app.phone || app.email || '—';
+    const rawStatus = String(app.status || 'pending');
+    const normalizedStatus = rawStatus.toLowerCase();
+    const statusLabel = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+    const statusClass = `status-pill ${normalizedStatus}`;
+    const isPending = normalizedStatus === 'pending' || normalizedStatus === 'under_review';
+    const actionStatus = app.actionStatus || (isPending ? 'pending' : 'reviewed');
+    const availability = app.availability || '—';
+    const actionCell = isPending ? `
+          <button class="btn brand" data-volunteer-action="approve" data-app-id="${app.id}">${window.I18n ? I18n.t('btn.approve') : 'Approve'}</button>
+          <button class="btn danger" data-volunteer-action="reject" data-app-id="${app.id}">${window.I18n ? I18n.t('btn.reject') : 'Reject'}</button>
+        ` : `<span class="muted reviewed-label">${window.I18n ? (I18n.t('status.reviewed') || 'Reviewed') : 'Reviewed'}</span>`;
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr data-app-id="${app.id}">
+        <td>${app.fullName}</td>
+        <td>${skills}</td>
+        <td>${availability}</td>
+        <td>${contact}</td>
+        <td>${submitted}</td>
+        <td><span class="${statusClass}">${statusLabel}</span></td>
+        <td>
+          <div class="volunteer-action-buttons">
+            ${actionCell}
+          </div>
+        </td>
+      </tr>
+    `);
+  });
+}
+
+async function loadApprovedVolunteers({ silent = false } = {}){
+  try{
+  const { volunteers } = await fetchJson('/api/volunteers');
+    const incoming = Array.isArray(volunteers) ? volunteers.map(mapVolunteerRow).filter(Boolean) : [];
+    state.volunteers = incoming;
+    renderVolunteers();
+    try { localStorage.setItem('dm_volunteers_cache', JSON.stringify(state.volunteers)); } catch {}
+  }catch(error){
+    const message = error?.payload?.error || error.message || 'Unable to load volunteers.';
+    if(!silent){
+      window.notifications?.error(message);
+    } else {
+      console.warn('Failed to load volunteers:', message);
+    }
+  }
+}
+
+async function loadPendingVolunteerApplications({ silent = false } = {}){
+  if(!isAdminRole()){
+    state.volunteerApplications = [];
+    renderVolunteerApplications();
+    updateVolunteerApplicationsMessage(null, 'Volunteer applications are visible to authorized coordinators only.', { lock: true });
+    return;
+  }
+
+  try{
+    const token = await getSupabaseToken();
+    if(!token){
+      state.volunteerApplications = [];
+      renderVolunteerApplications();
+      updateVolunteerApplicationsMessage('error', 'Your session has expired. Please sign in again to review applications.', { lock: true });
+      return;
+    }
+
+    const { applications } = await fetchJson('/api/volunteers/applications', {
+      auth: true,
+    });
+
+    const allApps = Array.isArray(applications) ? applications.map(mapVolunteerRow).filter(Boolean) : [];
+    
+    // For the applications awaiting review table, show recent applications
+    // Include approved/rejected for a brief period so status changes are visible
+    const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    state.volunteerApplications = allApps.filter(app => {
+      const isPending = !app.status || app.status.toLowerCase() === 'pending' || app.status.toLowerCase() === 'under_review';
+      const isRecentlyReviewed = app.reviewedAt && new Date(app.reviewedAt) > cutoffTime;
+      return isPending || isRecentlyReviewed;
+    });
+    
+    updateVolunteerApplicationsMessage(null, '', { lock: false });
+    renderVolunteerApplications();
+  }catch(error){
+    state.volunteerApplications = [];
+    renderVolunteerApplications();
+    let message = error?.payload?.error || error.message || 'Unable to load volunteer applications.';
+    if(error?.status === 401 || error?.status === 403){
+      message = 'You need an active authority or NDRF session to review applications.';
+    }
+    updateVolunteerApplicationsMessage('error', message, { lock: true });
+    if(!silent) window.notifications?.warning(message);
+  }
+}
+
+async function updateVolunteerApplicationStatus(id, status, notes = ''){
+  try{
+    updateVolunteerApplicationsMessage(null, status === 'approved' ? 'Approving volunteer…' : 'Updating application…', { lock: true });
+
+    const token = await getSupabaseToken();
+    if(!token){
+      throw new Error('Please sign in again to update applications.');
+    }
+
+    const body = {
+      status,
+      notes: notes ? notes : undefined,
+    };
+
+    const response = await fetchJson(`/api/volunteers/${id}/status`, {
+      method: 'PATCH',
+      auth: true,
+      body,
+    });
+
+    const updated = mapVolunteerRow(response?.application);
+    if(updated){
+      const normalizedStatus = String(updated.status || status).toLowerCase();
+      const actionStatus = ['pending', 'under_review'].includes(normalizedStatus) ? 'pending' : 'reviewed';
+
+      state.volunteerApplications = state.volunteerApplications.map((app)=>{
+        if(String(app.id) === String(id)){
+          return { ...app, ...updated, actionStatus };
+        }
+        return app;
+      });
+
+      if(!state.volunteerApplications.some((app)=> String(app.id) === String(id))){
+        state.volunteerApplications = [{ ...updated, actionStatus }, ...state.volunteerApplications];
+      }
+
+      renderVolunteerApplications();
+
+      if(['approved', 'processed', 'active'].includes(normalizedStatus)){
+        window.notifications?.success('Volunteer approved and notified.');
+      } else if(normalizedStatus === 'rejected'){
+        window.notifications?.info('Application rejected and applicant notified.');
+      }
+    }
+
+    updateVolunteerApplicationsMessage(null, 'Status updated.', { lock: false });
+    setTimeout(()=> updateVolunteerApplicationsMessage(null, '', { lock: false }), 2500);
+    scheduleVolunteerRefresh({ immediate: true, silent: true });
+  }catch(error){
+    console.error('Failed to update volunteer status:', error);
+    let message = error?.payload?.error || error.message || 'Unable to update status.';
+    updateVolunteerApplicationsMessage('error', message, { lock: true });
+    window.notifications?.error(message);
+  }
+}
+
+async function refreshVolunteerData({ silent = false } = {}){
+  try {
+    await Promise.all([
+      loadApprovedVolunteers({ silent }),
+      loadPendingVolunteerApplications({ silent })
+    ]);
+  } catch (error) {
+    if(!silent){
+      const message = supabaseErrorMessage(error, 'Unable to refresh volunteer data.');
+      window.notifications?.warning(message);
+    }
+  }
+}
+
+function scheduleVolunteerRefresh({ immediate = false, silent = true } = {}){
+  if(volunteerRefreshTimeoutId){
+    clearTimeout(volunteerRefreshTimeoutId);
+    volunteerRefreshTimeoutId = null;
+  }
+
+  const run = async () => {
+    try {
+      await refreshVolunteerData({ silent });
+    } catch (error) {
+      if(!silent){
+        const message = supabaseErrorMessage(error, 'Unable to refresh volunteer data.');
+        window.notifications?.warning(message);
+      }
+    }
+  };
+
+  if(immediate){
+    run();
+  } else {
+    volunteerRefreshTimeoutId = setTimeout(run, 250);
+  }
 }
 
 // Util: severity -> class
@@ -938,6 +1488,25 @@ document.addEventListener('click', (e) => {
   }
 });
 
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-volunteer-action]');
+  if(!btn) return;
+  const appIdRaw = btn.dataset.appId;
+  if(!appIdRaw) return;
+  const action = btn.dataset.volunteerAction;
+  const trimmed = appIdRaw.trim();
+  const asNumber = trimmed && !Number.isNaN(Number(trimmed)) ? Number(trimmed) : null;
+  const appId = asNumber !== null ? asNumber : trimmed;
+  if(action === 'approve'){
+    updateVolunteerApplicationStatus(appId, 'approved');
+  } else if(action === 'reject'){
+    if(confirm('Reject this application? The applicant will be notified automatically.')){
+      const note = prompt('Optional note for the applicant (leave blank to skip):') || '';
+      updateVolunteerApplicationStatus(appId, 'rejected', note.trim());
+    }
+  }
+});
+
 // Verify approve/reject (delegated)
 document.addEventListener('click', async (e)=>{
   const btn=e.target.closest('button[data-act]'); 
@@ -976,15 +1545,28 @@ document.addEventListener('click', async (e)=>{
           renderStats();
           renderAlertFeed();
         }
+        window.notifications?.success('Report verified and responders notified.');
       }
-      if(act==='reject') await mod.deleteDoc(ref);
+      if(act==='reject') {
+        await mod.updateDoc(ref, { status: 'Rejected', updatedAt: mod.serverTimestamp() });
+        window.notifications?.info('Report marked as rejected. Community will see the update.');
+      }
+      if(state.verifyQueue[i]){
+        state.verifyQueue[i] = {
+          ...state.verifyQueue[i],
+          status: act==='approve' ? 'Verified' : 'Rejected'
+        };
+      }
+      renderStats();
+      renderVerify();
+      renderReportMarkers();
       return; // UI will refresh from snapshot
     }
   } catch {}
 
   // Fallback to local state if Firestore not available or item lacks id
   if(act==='approve'){ state.verifyQueue[i].status='Verified'; }
-  if(act==='reject'){ state.verifyQueue.splice(i,1); }
+  if(act==='reject'){ state.verifyQueue[i].status='Rejected'; }
   renderStats(); renderVerify(); renderReportMarkers();
 });
 
@@ -1031,6 +1613,14 @@ function loadCachedData() {
       const parsed = JSON.parse(cachedReports);
       if (Array.isArray(parsed) && parsed.length > 0) {
         state.verifyQueue = parsed;
+      }
+    }
+
+    const cachedVols = localStorage.getItem('dm_volunteers_cache');
+    if (cachedVols) {
+      const parsed = JSON.parse(cachedVols);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        state.volunteers = parsed;
       }
     }
   } catch {
@@ -1113,6 +1703,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderSupplies();
   renderVerify();
   renderVolunteers();
+  renderVolunteerApplications();
 
   // Initialize new functionality
   initProfileDropdown();
@@ -1120,6 +1711,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initVideoInteractions();
   initTabs(); // Keyboard-friendly tabs
   initChat(); // Community chat
+  initVolunteerModal();
 
   // Apply icons directly from assets/icons
   applyIcons(document);
@@ -1136,8 +1728,13 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAlertMarkers();
   renderReportMarkers();
   renderShelterMarkers();
+  renderResourceCenters();
+  renderRiskMarkers();
   // Optional: center one map to user location for demo
   geolocateAndCenter(maps.alerts || maps.resources || maps.reports, { silent: true });
+
+  // Load volunteer data from Supabase (approved + pending)
+  scheduleVolunteerRefresh({ immediate: true, silent: true });
 
   // Locate me buttons
   document.getElementById('locate-alerts')?.addEventListener('click', ()=> geolocateAndCenter(maps.alerts));
@@ -1224,6 +1821,8 @@ document.addEventListener('DOMContentLoaded', function() {
       renderVerify();
       renderReportMarkers();
       renderChat();
+
+  await refreshVolunteerData({ silent: true });
       
       updateConnectionStatus('online', 'Online');
 
@@ -1310,8 +1909,39 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
 
+      const unsubVolunteers = mod.subscribeTable(VOLUNTEER_TABLE, (payload) => {
+        try {
+          const eventType = payload?.eventType;
+          const newData = payload?.new;
+          const oldData = payload?.old;
+          
+          if(eventType === 'INSERT' || eventType === 'UPDATE' || eventType === 'DELETE'){
+            // Immediate refresh for all components
+            scheduleVolunteerRefresh({ immediate: true, silent: true });
+            
+            // Also trigger immediate UI updates for status changes
+            if(eventType === 'UPDATE' && newData && oldData && newData.status !== oldData.status) {
+              // Force immediate re-render of both applications and volunteers
+              setTimeout(() => {
+                renderVolunteerApplications();
+                renderVolunteers();
+              }, 100);
+            }
+          }
+        } catch {
+          scheduleVolunteerRefresh({ immediate: true, silent: true });
+        }
+      });
+      volunteerRealtimeUnsub = () => { try { unsubVolunteers(); } catch {} };
+
       // Clean up on unload
-      window.addEventListener('beforeunload', () => { try{unsubAlerts();unsubReports();unsubChat();}catch{} });
+      window.addEventListener('beforeunload', () => {
+        try{unsubAlerts();unsubReports();unsubChat();volunteerRealtimeUnsub?.();}catch{}
+        if(volunteerRefreshTimeoutId){
+          clearTimeout(volunteerRefreshTimeoutId);
+          volunteerRefreshTimeoutId = null;
+        }
+      });
     } catch (err) {
       console.error('Supabase connection failed:', err);
       updateConnectionStatus('offline', 'Connection Failed');
@@ -1450,14 +2080,55 @@ function renderShelterMarkers(){
   state.shelters.forEach((s, i)=>{
     const [lat,lng] = rough[i % rough.length];
     const ratio = s.avail / Math.max(1, s.cap);
-    const color = ratio > 0.6 ? '#10b981' : (ratio > 0.3 ? '#eab308' : '#e11d48');
-    const m = L.circleMarker([lat,lng], { radius: 7, color, fillColor: color, fillOpacity: 0.85, weight: 1 })
-      .bindPopup(`<strong>${s.name}</strong><br>${window.I18n ? I18n.t('table.capacity') : 'Capacity'}: ${s.cap}<br>${window.I18n ? I18n.t('table.available') : 'Available'}: ${s.avail}<br>${window.I18n ? I18n.t('table.contact') : 'Contact'}: ${s.contact}`);
+    const occupancy = Math.round(ratio * 100);
+    const icon = getMapIcon('shelter');
+    const m = L.marker([lat,lng], { icon: icon || undefined, title: s.name })
+      .bindPopup(`<strong>${s.name}</strong><br>${window.I18n ? I18n.t('table.capacity') : 'Capacity'}: ${s.cap}<br>${window.I18n ? I18n.t('table.available') : 'Available'}: ${s.avail} (${occupancy}% open)<br>${window.I18n ? I18n.t('table.contact') : 'Contact'}: ${s.contact}`);
     layers.shelters.addLayer(m);
     points.push([lat,lng]);
   });
   if(points.length >= 2) maps.resources.fitBounds(points, { padding: [20,20] });
   else if(points.length === 1) maps.resources.setView(points[0], 12);
+}
+
+function renderResourceCenters(){
+  if(!maps.resources) return;
+  if(!layers.resourceCenters) layers.resourceCenters = L.layerGroup().addTo(maps.resources);
+  layers.resourceCenters.clearLayers();
+  state.resourceCenters.forEach((center)=>{
+    if(typeof center.lat !== 'number' || typeof center.lng !== 'number') return;
+    const icon = getMapIcon(center.type) || getMapIcon('location');
+    const popup = [`<strong>${center.name}</strong>`];
+    if(center.details) popup.push(`<div>${center.details}</div>`);
+    if(center.contact) popup.push(`<div>${window.I18n ? I18n.t('table.contact') : 'Contact'}: ${center.contact}</div>`);
+    const marker = L.marker([center.lat, center.lng], { icon: icon || undefined, title: center.name })
+      .bindPopup(popup.join(''));
+    layers.resourceCenters.addLayer(marker);
+  });
+}
+
+function renderRiskMarkers(){
+  if(!maps.risk) return;
+  if(!layers.riskHotspots) layers.riskHotspots = L.layerGroup().addTo(maps.risk);
+  layers.riskHotspots.clearLayers();
+  const points = [];
+  state.hazardHotspots.forEach((spot)=>{
+    if(typeof spot.lat !== 'number' || typeof spot.lng !== 'number') return;
+    const icon = getMapIcon(spot.type) || getMapIcon('location');
+    const popup = [
+      `<strong>${spot.name}</strong>`,
+      spot.details ? `<div>${spot.details}</div>` : ''
+    ];
+    if(spot.advisory){
+      popup.push(`<div class="muted">${spot.advisory}</div>`);
+    }
+    const marker = L.marker([spot.lat, spot.lng], { icon: icon || undefined, title: spot.name })
+      .bindPopup(popup.filter(Boolean).join(''));
+    layers.riskHotspots.addLayer(marker);
+    points.push([spot.lat, spot.lng]);
+  });
+  if(points.length >= 2){ maps.risk.fitBounds(points, { padding:[24,24] }); }
+  else if(points.length === 1){ maps.risk.setView(points[0], 9); }
 }
 
 // Helpers for geolocation UI near the map
@@ -1480,13 +2151,9 @@ function updateMyLocationMarker(map, coords){
   if(myLocationMarkers[key]){
     try{ myLocationMarkers[key].setLatLng(latlng); }catch{}
   } else {
-    myLocationMarkers[key] = L.circleMarker(latlng, {
-      radius: 6,
-      color: '#2563eb',
-      fillColor: '#3b82f6',
-      fillOpacity: 0.95,
-      weight: 2
-  }).bindPopup(window.I18n ? I18n.t('geo.youAreHere') : 'You are here').addTo(map);
+    const icon = getMapIcon('location');
+    myLocationMarkers[key] = L.marker(latlng, { icon: icon || undefined, title: window.I18n ? I18n.t('geo.youAreHere') : 'You are here' })
+      .bindPopup(window.I18n ? I18n.t('geo.youAreHere') : 'You are here').addTo(map);
   }
 }
 

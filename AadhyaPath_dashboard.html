@@ -6,7 +6,10 @@
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#0b1320" />
   <!-- Set your hosted API base URL for production (GitHub Pages). Example: https://aadhyapath-api.onrender.com -->
-  <meta name="api-base" content="https://your-backend.example.com" />
+  <meta name="api-base" content="http://localhost:5180" />
+  <!-- Supabase client configuration (public) -->
+  <meta name="supabase-url" content="https://itniteawqzjuympwxorv.supabase.co" />
+  <meta name="supabase-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bml0ZWF3cXpqdXltcHd4b3J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NzIwMzAsImV4cCI6MjA3NDM0ODAzMH0.k9HsSPabFeecC3LNpti4gBcMCC7FWasj2UcKQkBORxk" />
   <title>AadhyaPath — Dashboard</title>
   <meta name="description" content="AadhyaPath: Community crisis alerts, resources, and coordination for resilient response and recovery." />
   <link rel="stylesheet" href="assets/styles.css">
@@ -390,6 +393,13 @@
 
   <!-- PAGE: Volunteers -->
   <section id="volunteers-view" class="view tab-view" role="region" aria-labelledby="volunteers-tab">
+      <div class="volunteer-cta-bar">
+        <div class="volunteer-cta-copy">
+          <h2>Ready to help on the ground?</h2>
+          <p>Register as a verified responder and we will connect you with local relief tasks once approved.</p>
+        </div>
+        <button class="btn volunteer-cta" id="volunteer-open" type="button">Become a Volunteer</button>
+      </div>
       <div class="grid cols-2">
   <!-- Table: volunteers (#volunteer-list) -->
         <div class="card">
@@ -420,6 +430,32 @@
         </div>
       </div>
 
+      <div class="card role-only authority ndrf mt-16">
+        <div class="card-header">
+          <strong>Applications awaiting review</strong>
+          <span class="muted">Authority &amp; NDRF</span>
+        </div>
+        <div class="card-body">
+          <div id="volunteer-applications-message" class="muted" role="status" aria-live="polite"></div>
+          <div class="table-responsive">
+            <table class="volunteer-applications-table" aria-label="Pending volunteer applications">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Skills</th>
+                  <th scope="col">Availability</th>
+                  <th scope="col">Contact</th>
+                  <th scope="col">Submitted</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="volunteer-applications"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Collapsible Community Chat (Volunteers) -->
       <button class="chat-fab" id="chat-toggle" aria-label="Open community chat" data-i18n-aria-label="chat.openAria" title="Community chat">
         <span class="chat-fab-icon" aria-hidden="true">💬</span>
@@ -443,6 +479,66 @@
           <label class="sr-only" for="chat-text" data-i18n="placeholder.chatMessage">Type a message</label>
           <input id="chat-text" class="input" placeholder="Message the community…" data-i18n-placeholder="placeholder.chatMessage" autocomplete="off" />
           <button class="btn brand" id="chat-send" title="Send message" data-i18n="btn.send">Send</button>
+        </div>
+      </div>
+
+      <div class="modal" id="volunteer-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="modal-backdrop" data-dismiss="volunteer-modal"></div>
+        <div class="modal-content" role="document">
+          <header class="modal-header">
+            <h2>Volunteer Registration</h2>
+            <button type="button" class="modal-close" id="volunteer-close" aria-label="Close form">×</button>
+          </header>
+          <form id="volunteer-form" novalidate>
+            <div class="modal-body">
+              <div class="form-group">
+                <label for="volunteer-name">Full name<span class="required">*</span></label>
+                <input id="volunteer-name" name="fullName" class="input" required maxlength="120" placeholder="Enter your full name" />
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="volunteer-email">Email<span class="required">*</span></label>
+                  <input id="volunteer-email" name="email" class="input" type="email" required maxlength="160" placeholder="you@example.com" autocomplete="email" />
+                </div>
+                <div class="form-group">
+                  <label for="volunteer-phone">Contact number<span class="required">*</span></label>
+                  <input id="volunteer-phone" name="phone" class="input" type="tel" required maxlength="32" placeholder="(+91) 98765 43210" autocomplete="tel" />
+                </div>
+              </div>
+              <fieldset class="form-group">
+                <legend>Skills you can offer<span class="required">*</span></legend>
+                <div class="skills-grid" id="volunteer-skills">
+                  <!-- populated by app.js -->
+                </div>
+              </fieldset>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="volunteer-availability">Availability<span class="required">*</span></label>
+                  <select id="volunteer-availability" name="availability" class="select" required>
+                    <option value="">Select availability</option>
+                    <option value="Weekdays">Weekdays</option>
+                    <option value="Weekends">Weekends</option>
+                    <option value="Evenings">Evenings</option>
+                    <option value="On-call">On-call / Emergency mobilization</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="volunteer-location">Preferred location</label>
+                  <input id="volunteer-location" name="preferredLocation" class="input" maxlength="160" placeholder="District or ward" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="volunteer-motivation">Tell us about your experience (optional)</label>
+                <textarea id="volunteer-motivation" name="motivation" rows="3" class="input" maxlength="1000" placeholder="Share any prior volunteering or response experience"></textarea>
+              </div>
+              <p class="form-help">We only use this information to coordinate official relief tasks. Your data is stored securely and never shared publicly.</p>
+              <div class="form-feedback" id="volunteer-feedback" role="alert" aria-live="polite"></div>
+            </div>
+            <footer class="modal-footer">
+              <button type="button" class="btn" id="volunteer-cancel">Cancel</button>
+              <button type="submit" class="btn brand" id="volunteer-submit">Submit application</button>
+            </footer>
+          </form>
         </div>
       </div>
     </section>

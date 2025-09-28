@@ -53,7 +53,7 @@ Entry and auth flow
 - Multi-hazard alerts and filters (now includes slow-onset hazards: Air Pollution, Land Degradation, Sea Level Rise)
 - Incident reporting and verification (demo data)
 - Shelters/resources and map placeholders on Alerts and Report pages
-- Volunteers and task assignment (demo)
+- Volunteers and task assignment, now with end-to-end registration + admin approvals
 - Do's & Don'ts with short videos
 
 ## Project structure
@@ -103,8 +103,13 @@ This applies `supabase/migrations/20250928_init.sql` which:
 	- Under Database > Replication, confirm the above tables are included in `supabase_realtime`
 
 5) Configure local `.env`
-	- In `server/.env`, set `DATABASE_URL` to your Supabase connection string (password URL-encoded). Example:
-	  - `DATABASE_URL=postgresql://postgres:Your%40EncodedPassword@db.<ref>.supabase.co:5432/postgres`
+	- Copy `server/.env.example` to `server/.env`.
+	- For Supabase production hosting, set both pooled and direct URLs:
+	  - `DATABASE_URL=postgresql://postgres.itniteawqzjuympwxorv:Your%40Password@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true`
+	  - `DIRECT_URL=postgresql://postgres.itniteawqzjuympwxorv:Your%40Password@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres`
+	- Replace `Your%40Password` with your actual password, URL-encoding any special characters (`@` → `%40`, `:` → `%3A`, etc.).
+	- Provide the Supabase JWT secret (`SUPABASE_JWT_SECRET`) so the backend can verify dashboard tokens, and keep it private.
+	- Expose the public browser values (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) if you prefer not to use the default meta tags.
 
 6) Run locally
 	- In `server/`, `npm install` then `npm start`
@@ -143,4 +148,17 @@ Auth endpoints:
 
 Notes:
 - The backend prefers a `password_hash` column in `login`. If only `password` exists, it will store plaintext as a backwards-compatible fallback and return a warning. Consider migrating to hashed passwords.
+
+### Volunteer application APIs
+
+The dashboard now submits volunteer registrations to the backend and exposes review endpoints:
+
+- `POST /api/volunteers/apply` — anonymous submission of `{ fullName, email, phone, skills[], availability, preferredLocation?, motivation? }`
+- `GET /api/volunteers` — public list of approved volunteers (sanitized; no contact info)
+- `GET /api/volunteers/applications` — **admin only** (requires Supabase JWT) list of pending applications
+- `PATCH /api/volunteers/:id/status` — **admin only** approve/reject with optional notes, automatically notifies the applicant
+
+To enable the admin endpoints, set `SUPABASE_JWT_SECRET` in `server/.env` (find it in Supabase → Project Settings → API). Dashboard requests include the Supabase access token, which the backend verifies against this secret before allowing approvals.
+
+Optional email notifications use SMTP (Nodemailer). Provide `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` in the environment to send confirmation/approval notices. When SMTP is not configured the backend logs the intent but skips sending (so local development continues to work).
 

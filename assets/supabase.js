@@ -1,10 +1,66 @@
 // Supabase initialization and helper APIs (browser ESM via CDN)
-// Uses public anon key on the client; service role key must NEVER be exposed here.
+// Uses public anon/publishable key on the client; service role key must NEVER be exposed here.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Project configuration (provided by user)
-const SUPABASE_URL = 'https://itniteawqzjuympwxorv.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bml0ZWF3cXpqdXltcHd4b3J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NzIwMzAsImV4cCI6MjA3NDM0ODAzMH0.k9HsSPabFeecC3LNpti4gBcMCC7FWasj2UcKQkBORxk';
+function readMeta(name) {
+  try {
+    const tag = document.querySelector(`meta[name="${name}"]`);
+    const value = tag?.content?.trim();
+    return value || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function readWindow(keys = []) {
+  if (typeof window === 'undefined') return undefined;
+  for (const key of keys) {
+    const value = window[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function resolveSupabaseSetting({ windowKeys = [], metaNames = [] }, fallback = '') {
+  const fromWindow = readWindow(windowKeys);
+  if (fromWindow) return fromWindow;
+
+  for (const name of metaNames) {
+    const value = readMeta(name);
+    if (value) return value;
+  }
+
+  // In Vite/Parcel builds import.meta.env will exist; guard for static usage
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    for (const key of windowKeys) {
+      const envValue = import.meta.env[key] || import.meta.env[`VITE_${key}`];
+      if (typeof envValue === 'string' && envValue.trim()) {
+        return envValue.trim();
+      }
+    }
+  }
+
+  return fallback;
+}
+
+const defaultSupabaseUrl = 'https://itniteawqzjuympwxorv.supabase.co';
+const defaultSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bml0ZWF3cXpqdXltcHd4b3J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NzIwMzAsImV4cCI6MjA3NDM0ODAzMH0.k9HsSPabFeecC3LNpti4gBcMCC7FWasj2UcKQkBORxk';
+
+const SUPABASE_URL = resolveSupabaseSetting({
+  windowKeys: ['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_URL', '__SUPABASE_URL__'],
+  metaNames: ['supabase-url', 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_URL'],
+}, defaultSupabaseUrl);
+
+const SUPABASE_ANON_KEY = resolveSupabaseSetting({
+  windowKeys: ['SUPABASE_ANON_KEY', 'SUPABASE_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY', 'EXPO_PUBLIC_SUPABASE_KEY', '__SUPABASE_KEY__'],
+  metaNames: ['supabase-key', 'supabase-anon-key', 'SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY', 'EXPO_PUBLIC_SUPABASE_KEY'],
+}, defaultSupabaseKey);
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error('[Supabase] Missing URL or publishable key. Provide via <meta name="supabase-url"> / <meta name="supabase-key"> or window globals.');
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
