@@ -934,10 +934,32 @@
   function applyToNode(node, lang){
     // textContent
     const key = node.getAttribute('data-i18n');
-    if(key){ node.textContent = t(key, lang); }
+    if(key){
+      if(!node.hasAttribute('data-i18n-original')){
+        node.setAttribute('data-i18n-original', node.textContent);
+      }
+      const translation = t(key, lang);
+      const original = node.getAttribute('data-i18n-original');
+      if(translation && translation !== key){
+        node.textContent = translation;
+      }else if(original !== null){
+        node.textContent = original;
+      }
+    }
     // innerHTML
     const htmlKey = node.getAttribute('data-i18n-html');
-    if(htmlKey){ node.innerHTML = t(htmlKey, lang); }
+    if(htmlKey){
+      if(!node.hasAttribute('data-i18n-original-html')){
+        node.setAttribute('data-i18n-original-html', node.innerHTML);
+      }
+      const translationHtml = t(htmlKey, lang);
+      const originalHtml = node.getAttribute('data-i18n-original-html');
+      if(translationHtml && translationHtml !== htmlKey){
+        node.innerHTML = translationHtml;
+      }else if(originalHtml !== null){
+        node.innerHTML = originalHtml;
+      }
+    }
     // attributes: any data-i18n-*
     Array.from(node.attributes).forEach(attr => {
       if(!attr.name.startsWith('data-i18n-')) return;
@@ -945,7 +967,15 @@
       if(!suf || suf === 'html' || suf === '' || suf === 'i18n') return;
       const targetAttr = suf.replace(/_/g,'-'); // allow data-i18n-aria_label -> aria-label
       const valKey = attr.value;
-      if(valKey){ node.setAttribute(targetAttr, t(valKey, lang)); }
+      if(valKey){
+        const translationAttr = t(valKey, lang);
+        if(translationAttr && translationAttr !== valKey){
+          node.setAttribute(targetAttr, translationAttr);
+        }else if(node.hasAttribute(targetAttr)){
+          // keep existing attribute value if translation missing
+          return;
+        }
+      }
     });
   }
 
