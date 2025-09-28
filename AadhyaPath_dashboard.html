@@ -688,7 +688,7 @@
   <script src="assets/i18n.js" defer></script>
   <script src="assets/app.js" defer></script>
   <script type="module">
-    import { auth, onAuthStateChanged, signOut } from './assets/firebase.js';
+    import { onAuthStateChanged, signOut } from './assets/supabase.js';
 
     function determineRoleFromEmail(email){
       try{
@@ -704,8 +704,8 @@
       }catch{ return 'citizen'; }
     }
 
-    // Keep UI in sync with Firebase auth state
-    onAuthStateChanged(auth, (user) => {
+    // Keep UI in sync with Supabase auth state
+    onAuthStateChanged(null, (user) => {
       if (user) {
         // Update profile name display
         const nameEl = document.getElementById('profile-name');
@@ -720,7 +720,7 @@
             : determineRoleFromEmail(user.email);
           localStorage.setItem('dm_role', role);
           localStorage.setItem('dm_role_locked', '1');
-          localStorage.setItem('dm_user', JSON.stringify({ uid: user.uid, email: user.email, displayName: user.displayName || '', provider: 'firebase', role }));
+          localStorage.setItem('dm_user', JSON.stringify({ uid: user.id || user.uid, email: user.email, displayName: (user.user_metadata?.full_name || user.displayName || ''), provider: 'supabase', role }));
           // Sync prefs role to reflect lock
           try{ const prefs = JSON.parse(localStorage.getItem('prefs')||'{}'); prefs.role = role; localStorage.setItem('prefs', JSON.stringify(prefs)); }catch{}
           // Notify app.js to re-apply role lock & UI gating immediately
@@ -744,7 +744,7 @@
     document.addEventListener('click', async (e) => {
       if (e.target && e.target.id === 'sign-out') {
         try {
-          await signOut(auth);
+          await signOut();
         } catch (_) {
           // Even if signOut fails locally, clear client flags
         } finally {

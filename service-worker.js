@@ -3,7 +3,7 @@
  * - Runtime cache for icons, CSS/JS, and map tiles
  * - Offline fallback for navigation requests
  */
-const VERSION = 'v1.0.2';
+const VERSION = 'v1.1.0';
 const PRECACHE = `precache-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 
@@ -18,7 +18,7 @@ const PRECACHE_URLS = [
   'assets/landing.js',
   'assets/auth.css',
   'assets/auth.js',
-  'assets/firebase.js',
+  'assets/supabase.js',
   'assets/config.js',
   'assets/styles.css',
   'assets/app.js',
