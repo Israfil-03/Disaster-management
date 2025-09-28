@@ -47,6 +47,11 @@
       </div>
   <!-- Controls: role/lang/contrast/profile -->
   <div class="controls header-controls" role="group" aria-label="Header controls">
+        <!-- Connection Status Indicator -->
+        <div id="connection-status" class="connection-status" title="Real-time connection status">
+          <span id="connection-indicator" class="connection-indicator offline">●</span>
+          <span id="connection-text" class="connection-text">Connecting...</span>
+        </div>
         <select id="role-select" class="select role-hidden" aria-label="Select user role" disabled title="Role is assigned based on your account">
           <option value="citizen">Citizen</option>
           <option value="authority">Local Authority</option>
@@ -686,6 +691,7 @@
     defer
   ></script>
   <script src="assets/i18n.js" defer></script>
+  <script src="assets/notifications.js"></script>
   <script src="assets/app.js" defer></script>
   <script type="module">
     import { onAuthStateChanged, signOut } from './assets/supabase.js';
