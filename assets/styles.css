@@ -528,6 +528,70 @@ header{
   } 
 }
 
+/* Report view: allow verification column to breathe more on wide screens */
+@media(min-width:900px){
+  #report-view .grid.cols-2{
+    grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);
+  }
+}
+
+@media(min-width:1200px){
+  #report-view .grid.cols-2{
+    grid-template-columns:minmax(0,1.5fr) minmax(0,1.15fr);
+  }
+}
+
+#report-view .stack{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+#report-view .stack > .card-compact{
+  min-height:420px;
+  display:flex;
+  flex-direction:column;
+}
+
+#report-view .stack > .card-compact .card-body{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+}
+
+#report-view .table-responsive{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  border-radius:12px;
+}
+
+#report-view .verify-table{
+  width:100%;
+  min-width:520px;
+  table-layout:fixed;
+}
+
+@media(max-width:900px){
+  #report-view .stack{
+    display:grid;
+  }
+
+  #report-view .stack > .card-compact{
+    min-height:unset;
+    display:block;
+  }
+
+  #report-view .stack > .card-compact .card-body{
+    display:block;
+  }
+
+  #report-view .verify-table{
+    min-width:0;
+    table-layout:auto;
+  }
+}
+
 .cards, .card-grid{
   display:grid;
   gap:16px
