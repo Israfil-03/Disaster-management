@@ -13,8 +13,17 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
   },
   realtime: {
-    params: { eventsPerSecond: 5 },
+    params: { 
+      eventsPerSecond: 10,
+      heartbeatIntervalMs: 30000,
+      reconnectAfterMs: function (tries) { return Math.min(tries * 1000, 30000); }
+    },
   },
+  global: {
+    headers: {
+      'X-Client-Info': 'disaster-management-app'
+    }
+  }
 });
 
 // Firestore-like tiny shims so existing code can call similar APIs while we migrate
@@ -70,72 +79,125 @@ export function doc(_db, tableName, id) { return { __table: String(tableName), i
 export async function addDoc(tableRef, values) {
   const table = String(tableRef);
   const payload = Array.isArray(values) ? values : [values];
-  // For inserts we don't strictly need the returning row; skipping select avoids
-  // schema cache mismatches when columns are added/renamed server-side.
-  const { error } = await supabase.from(table).insert(payload);
-  if (error) throw error;
-  // Return a lightweight stub so callers that ignore the return keep working
-  const data = null;
-  if (error) throw error;
-  return data?.[0] || null;
+  const user = (await supabase.auth.getUser()).data?.user;
+  
+  // Add timestamp if not present
+  const timestampedPayload = payload.map(item => {
+    const enriched = {
+      ...item,
+      ts: item.ts || new Date().toISOString(),
+    };
+
+    const needsCreatedBy = ['alerts', 'reports'].includes(table);
+    if (needsCreatedBy && user?.id && typeof enriched.created_by === 'undefined') {
+      enriched.created_by = user.id;
+    }
+
+    if (table === 'alerts') {
+      const messageText = enriched.msg ?? enriched.message ?? '';
+      const severityLevel = enriched.sev ?? enriched.severity ?? 'Low';
+      enriched.msg = messageText;
+      enriched.message = messageText;
+      enriched.sev = severityLevel;
+      enriched.severity = severityLevel;
+    }
+
+    if (table === 'reports') {
+      const descriptionText = enriched.desc ?? enriched.description ?? enriched.text ?? '';
+      const locationText = enriched.loc ?? enriched.location ?? '';
+      enriched.desc = descriptionText;
+      enriched.description = descriptionText;
+      enriched.loc = locationText;
+      enriched.location = locationText;
+      enriched.status = enriched.status || 'Pending';
+    }
+
+    if (table === 'chat') {
+      const messageText = enriched.message ?? enriched.text ?? enriched.body ?? '';
+      enriched.message = messageText;
+      enriched.text = messageText;
+    }
+
+    return enriched;
+  });
+  
+  try {
+    const { data, error } = await supabase.from(table).insert(timestampedPayload).select();
+    if (error) {
+      console.error(`Error inserting into ${table}:`, error);
+      throw error;
+    }
+    return data?.[0] || null;
+  } catch (err) {
+    console.error(`Failed to insert into ${table}:`, err);
+    throw err;
+  }
 }
 
-// Smart insert for alerts: handle either 'msg' or 'message' column depending on DB schema
+// Universal insert for alerts - works with any schema configuration
 export async function insertAlert(alert) {
-  // Build two payload variants
-  const base = {
+  const messageText = alert.msg ?? alert.message ?? alert.text ?? '';
+  const severityLevel = alert.sev ?? alert.severity ?? 'Low';
+  const user = (await supabase.auth.getUser()).data?.user;
+  const createdBy = user?.id || null;
+  
+  const payload = {
     hazard: alert.hazard || 'Alert',
-    sev: alert.sev || 'Low',
+    sev: severityLevel,
+    msg: messageText,
+    message: messageText,
+    severity: severityLevel,
     state: alert.state || '',
     district: alert.district || '',
     area: alert.area || '',
-    lat: alert.lat,
-    lng: alert.lng,
+    lat: alert.lat || null,
+    lng: alert.lng || null,
+    ts: new Date().toISOString(),
+    created_by: createdBy
   };
 
-  // Prefer 'msg' first (matches our canonical schema)
-  const payloadMsg = [{ ...base, msg: alert.msg ?? alert.message ?? alert.text ?? '' }];
   try {
-    // First try with canonical columns (sev + msg)
-    const { error } = await supabase.from('alerts').insert(payloadMsg);
-    if (error) throw error;
-    return null;
-  } catch (e) {
-    // If the error indicates 'msg' column not found, retry with 'message'
-    const msg = (e && e.message) ? String(e.message).toLowerCase() : '';
-    const mentions = (s) => msg.includes(s);
-    // Build a severity-compatible base if 'sev' appears problematic
-    const baseSeverity = { ...base };
-    delete baseSeverity.sev; // we'll re-add under the right key in each path
-
-    if (mentions("'msg' column") || mentions('column msg') || (mentions('msg') && !mentions('sev'))) {
-      // Try with message column (sev as-is)
-      try {
-        const { error } = await supabase.from('alerts').insert([{ ...base, message: alert.message ?? alert.msg ?? alert.text ?? '' }]);
-        if (error) throw error;
-        return null;
-      } catch (e2) {
-        // If sev is also an issue, fall through to severity compatibility below
-        const m2 = (e2 && e2.message) ? String(e2.message).toLowerCase() : '';
-        if (!(m2.includes("'sev' column") || m2.includes('column sev') || m2.includes('sev'))) throw e2;
-      }
+    const { data, error } = await supabase.from('alerts').insert([payload]).select();
+    if (error) {
+      console.error('Alert insertion error:', error);
+      throw error;
     }
+    return data?.[0] || null;
+  } catch (error) {
+    console.error('❌ Failed to insert alert:', error);
+    throw error;
+  }
+}
 
-    // If 'sev' is not recognized by the API/schema cache, retry using 'severity'
-    if (mentions("'sev' column") || mentions('column sev') || mentions('sev')) {
-      const payloadSeverityMsg = [{ ...baseSeverity, severity: alert.sev || 'Low', msg: alert.msg ?? alert.message ?? alert.text ?? '' }];
-      try {
-        const { error } = await supabase.from('alerts').insert(payloadSeverityMsg);
-        if (error) throw error;
-        return null;
-      } catch (e3) {
-        // Last attempt: severity + message
-        const { error } = await supabase.from('alerts').insert([{ ...baseSeverity, severity: alert.sev || 'Low', message: alert.message ?? alert.msg ?? alert.text ?? '' }]);
-        if (error) throw error;
-        return null;
-      }
+// Universal insert for reports - handles all fields and reserved keywords
+export async function insertReport(report) {
+  const descriptionText = report.desc || report.description || report.text || '';
+  const locationText = report.loc || report.location || '';
+  const user = (await supabase.auth.getUser()).data?.user;
+  const createdBy = user?.id || null;
+  
+  const payload = {
+    type: report.type || 'Report',
+    desc: descriptionText,  // Using desc (quoted in schema)
+    description: descriptionText,  // Also populate description for compatibility
+    loc: locationText,
+    location: locationText,  // Also populate location for compatibility
+    contact: report.contact || '',
+    status: report.status || 'Pending',
+    ts: new Date().toISOString(),
+    created_by: createdBy
+  };
+
+  try {
+    const { data, error } = await supabase.from('reports').insert([payload]).select();
+    if (error) {
+      console.error('Report insertion error:', error);
+      throw error;
     }
-    throw e;
+    return data?.[0] || null;
+  } catch (error) {
+    console.error('❌ Failed to insert report:', error);
+    throw error;
   }
 }
 
@@ -162,19 +224,34 @@ export async function fetchLatest(table, { limit = 100, order = 'ts', ascending 
   return data || [];
 }
 
-// Realtime subscription helper
+// Realtime subscription helper with better error handling
 export function subscribeTable(table, handler) {
   const channel = supabase
-    .channel(`realtime:${table}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
-      try { handler(payload); } catch {}
+    .channel(`realtime:${table}:${Date.now()}`)
+    .on('postgres_changes', { 
+      event: '*', 
+      schema: 'public', 
+      table 
+    }, (payload) => {
+      try { 
+        handler(payload); 
+      } catch (error) {
+        console.error(`Error handling real-time event for ${table}:`, error);
+      }
     })
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        // no-op
+    .subscribe((status, err) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.error(`❌ Real-time channel error for ${table}:`, err);
       }
     });
-  return () => { try { supabase.removeChannel(channel); } catch {} };
+    
+  return () => { 
+    try { 
+      supabase.removeChannel(channel); 
+    } catch (error) {
+      console.error(`Error unsubscribing from ${table}:`, error);
+    } 
+  };
 }
 
 // Upsert a user profile with role info into profiles (if table exists)
@@ -191,7 +268,7 @@ export async function ensureUserProfile(user, role = 'citizen', displayName) {
     const { error } = await supabase.from('profiles').upsert(profile, { onConflict: 'id' });
     if (error && !/relation "profiles" does not exist/i.test(error.message)) {
       // Only surface errors other than missing table (in case DB not set up yet)
-      console.warn('ensureUserProfile failed:', error.message);
+      console.error('ensureUserProfile failed:', error.message);
     }
   } catch (e) {
     // swallow to avoid breaking UX

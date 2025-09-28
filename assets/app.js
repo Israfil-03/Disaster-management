@@ -799,44 +799,84 @@ $('#submit-report').addEventListener('click', async ()=>{
   const type=$('#report-type').value;
   const desc=$('#report-description').value.trim();
   const loc=$('#report-location').value.trim();
+  const contact=$('#report-contact').value.trim();
 
   if(!desc || !loc){ 
     $('#report-message').textContent = (window.I18n ? I18n.t('report.validation.missing') : 'Please add description and location.'); 
+    $('#report-message').style.color = '#e11d48';
     return; 
   }
+
+  // Show loading state
+  $('#submit-report').disabled = true;
+  $('#submit-report').textContent = 'Submitting...';
+  $('#report-message').textContent = 'Submitting report...';
+  $('#report-message').style.color = '#3b82f6';
 
   // Try to persist to Supabase; fallback to local state
   try {
     const mod = await import('./supabase.js');
-    await mod.addDoc(mod.collection(mod.db, 'reports'), {
+    await mod.insertReport({
       type,
       desc,
       loc,
+      contact: contact || '',
       status: 'Pending',
     });
-  } catch {
+    
+    // Show success message
+    $('#report-message').textContent = (window.I18n ? I18n.t('report.submitted') : 'Report submitted successfully! It will be reviewed by authorities.');
+    $('#report-message').style.color = '#10b981';
+    
+    // Show success notification
+    window.notifications?.success('✅ Report Submitted Successfully!\n\nYour report has been sent to authorities for verification. You will be notified once it\'s reviewed.');
+    
+  } catch (error) {
+    console.error('Report submission error:', error);
+    
+    // Fallback to local state
     state.verifyQueue.unshift({
       time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
       type, 
-      loc, 
+      loc,
+      desc,
+      contact: contact || '',
       status:'Pending'
     });
     renderStats(); 
     renderVerify();
     renderReportMarkers();
+    
+    // Show warning message
+    $('#report-message').textContent = 'Report saved locally. Please check your internet connection for real-time updates.';
+    $('#report-message').style.color = '#eab308';
+    
+    // Show warning notification
+    window.notifications?.warning('⚠️ Report Saved Locally\n\nYour report has been saved but may not be visible to authorities until you have internet connection.');
   }
 
+  // Clear form
   $('#report-description').value=''; 
   $('#report-location').value=''; 
   $('#report-contact').value=''; 
-  $('#report-message').textContent = (window.I18n ? I18n.t('report.submitted') : 'Report submitted for verification.');
-  // When Firestore is active, real-time listeners will update UI
+  
+  // Reset button
+  $('#submit-report').disabled = false;
+  $('#submit-report').textContent = (window.I18n ? I18n.t('btn.submit') : 'Submit Report');
+  
+  // Clear message after 5 seconds
+  setTimeout(() => {
+    $('#report-message').textContent = '';
+  }, 5000);
 });
 
 // Broadcast alert (authority/NDRF)
 $('#send-alert').addEventListener('click', async ()=>{
   const msg=$('#alert-message').value.trim(); 
-  if(!msg) return;
+  if(!msg) {
+    window.notifications?.error('Please enter an alert message.');
+    return;
+  }
 
   // Read structured fields from the broadcast form
   const sev=$('#alert-severity').value;
@@ -872,9 +912,10 @@ $('#send-alert').addEventListener('click', async ()=>{
     renderAlertFeed();
   }
 
-  // Clear inputs and notify
+  // Clear inputs and reset button
   $('#alert-message').value=''; 
-  alert(window.I18n ? I18n.t('alerts.broadcasted') : 'Alert broadcasted.');
+  $('#send-alert').disabled = false;
+  $('#send-alert').textContent = (window.I18n ? I18n.t('btn.broadcast') : 'Broadcast Alert');
 });
 
 // Assign task → state.tasks
@@ -974,10 +1015,64 @@ $('#large-text').addEventListener('change', (e)=>{
   document.body.style.fontSize = e.target.checked ? '18px' : '' 
 });
 
+// Load cached data from localStorage for offline resilience
+function loadCachedData() {
+  try {
+    const cachedAlerts = localStorage.getItem('dm_alerts_cache');
+    if (cachedAlerts) {
+      const parsed = JSON.parse(cachedAlerts);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        state.alerts = parsed;
+      }
+    }
+    
+    const cachedReports = localStorage.getItem('dm_reports_cache');
+    if (cachedReports) {
+      const parsed = JSON.parse(cachedReports);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        state.verifyQueue = parsed;
+      }
+    }
+  } catch {
+    // Ignore corrupted cache entries
+  }
+}
+
+// Connection status management
+function updateConnectionStatus(status, text = '') {
+  const indicator = document.getElementById('connection-indicator');
+  const textEl = document.getElementById('connection-text');
+  
+  if (indicator && textEl) {
+    indicator.className = `connection-indicator ${status}`;
+    textEl.textContent = text || status;
+  }
+}
+
+let lastRealtimeWarningTs = 0;
+function notifyRealtimeIssue(message) {
+  const now = Date.now();
+  if (now - lastRealtimeWarningTs < 60000) {
+    return;
+  }
+  lastRealtimeWarningTs = now;
+  window.notifications?.warning(message);
+}
+
 // Bootstrap: on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
   // Hard guard: if somehow opened without auth flag, bounce to login
   try { if(localStorage.getItem('dm_logged_in') !== '1'){ window.location.replace('auth.html?mode=login'); return; } } catch {}
+  
+  // Initialize notification system
+  window.notifications = new NotificationManager();
+  
+  // Initialize connection status
+  updateConnectionStatus('connecting', 'Connecting...');
+  
+  // Load cached data first for immediate display
+  loadCachedData();
+  
   // Load and apply saved preferences (role, lang, contrast)
   const prefs = loadPrefs();
   const lockedRole = getLockedRole();
@@ -1050,19 +1145,42 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('locate-risk')?.addEventListener('click', ()=> geolocateAndCenter(maps.risk));
   document.getElementById('locate-resources')?.addEventListener('click', ()=> geolocateAndCenter(maps.resources));
 
-  // Supabase real-time listeners (optional)
+  // Supabase real-time listeners with improved error handling
   (async ()=>{
     try {
-      const mod = await import('./supabase.js');
+  const mod = await import('./supabase.js');
 
-      // Initial fetch
+      // Check authentication first
+      const { data: session, error: sessionError } = await mod.supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        updateConnectionStatus('offline', 'Auth Error');
+        window.notifications?.error('Authentication error. Please sign in again.');
+        return;
+      }
+
+      if (!session?.session) {
+        updateConnectionStatus('offline', 'Not Signed In');
+        window.notifications?.warning('Please sign in to access real-time features.');
+        return;
+      }
+
+      // Initial fetch with timeout
+      const fetchWithTimeout = (promise, timeout = 10000) => {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), timeout))
+        ]);
+      };
+
       const [alerts0, reports0, chat0] = await Promise.all([
-        mod.fetchLatest('alerts', { limit: 100, order: 'ts', ascending: false }),
-        mod.fetchLatest('reports', { limit: 200, order: 'ts', ascending: false }),
-        mod.fetchLatest('chat', { limit: 200, order: 'ts', ascending: true }),
+        fetchWithTimeout(mod.fetchLatest('alerts', { limit: 100, order: 'ts', ascending: false })),
+        fetchWithTimeout(mod.fetchLatest('reports', { limit: 200, order: 'ts', ascending: false })),
+        fetchWithTimeout(mod.fetchLatest('chat', { limit: 200, order: 'ts', ascending: true })),
       ]);
 
-      state.alerts = (alerts0 || []).map((d)=>({
+      // Update state with fresh data
+      const freshAlerts = (alerts0 || []).map((d)=>({
         id: d.id,
         time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '',
         hazard: d.hazard || 'Alert',
@@ -1070,20 +1188,50 @@ document.addEventListener('DOMContentLoaded', function() {
         msg: (d.msg ?? d.message ?? ''),
         state: d.state || '', district: d.district || '', area: d.area || '', lat: d.lat, lng: d.lng
       }));
-  state.verifyQueue = (reports0 || []).map((d)=>({ id: d.id, time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '', type: d.type || '', loc: d.loc || '', status: d.status || 'Pending', desc: d.desc || '' }));
-      state.chat.messages = (chat0 || []).map((d)=>({ id: d.id, user: d.user || 'Anon', role: d.role || '', text: d.text || '', ts: d.ts ? new Date(d.ts).getTime() : Date.now() }));
+      
+      const freshReports = (reports0 || []).map((d)=>({ 
+        id: d.id, 
+        time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '', 
+        type: d.type || '', 
+        loc: d.loc || '', 
+        status: d.status || 'Pending', 
+        desc: d.desc || '',
+        contact: d.contact || ''
+      }));
+      
+      // Only update if we got fresh data
+      if (freshAlerts.length > 0) {
+        state.alerts = freshAlerts;
+        localStorage.setItem('dm_alerts_cache', JSON.stringify(state.alerts));
+      }
+      
+      if (freshReports.length > 0) {
+        state.verifyQueue = freshReports;
+        localStorage.setItem('dm_reports_cache', JSON.stringify(state.verifyQueue));
+      }
+      
+      state.chat.messages = (chat0 || []).map((d)=>({ 
+        id: d.id, 
+        user: d.user || 'Anon', 
+        role: d.role || '', 
+        text: d.text || '', 
+        ts: d.ts ? new Date(d.ts).getTime() : Date.now() 
+      }));
+      
       persistChat();
       renderStats();
       renderAlertFeed();
       renderVerify();
       renderReportMarkers();
       renderChat();
+      
+      updateConnectionStatus('online', 'Online');
 
-      // Realtime subscriptions
-      const unsubAlerts = mod.subscribeTable('alerts', async (_evt) => {
+      // Realtime subscriptions with improved error handling and persistence
+      const unsubAlerts = mod.subscribeTable('alerts', async () => {
         try {
           const latest = await mod.fetchLatest('alerts', { limit: 100, order: 'ts', ascending: false });
-          state.alerts = (latest || []).map((d)=>({
+          const newAlerts = (latest || []).map((d)=>({
             id: d.id,
             time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '',
             hazard: d.hazard || 'Alert',
@@ -1091,34 +1239,97 @@ document.addEventListener('DOMContentLoaded', function() {
             msg: (d.msg ?? d.message ?? ''),
             state: d.state || '', district: d.district || '', area: d.area || '', lat: d.lat, lng: d.lng
           }));
-          renderStats();
-          renderAlertFeed();
-        } catch {}
+          
+          // Only update if data actually changed
+          if (JSON.stringify(newAlerts) !== JSON.stringify(state.alerts)) {
+            state.alerts = newAlerts;
+            // Persist to localStorage for offline resilience
+            try {
+              localStorage.setItem('dm_alerts_cache', JSON.stringify(state.alerts));
+            } catch {}
+            renderStats();
+            renderAlertFeed();
+            renderAlertMarkers();
+          }
+        } catch {
+          updateConnectionStatus('connecting', 'Reconnecting...');
+          notifyRealtimeIssue('Live alerts may be out of date. Retrying connection...');
+        }
       });
 
-      const unsubReports = mod.subscribeTable('reports', async (_evt) => {
+      const unsubReports = mod.subscribeTable('reports', async () => {
         try {
           const latest = await mod.fetchLatest('reports', { limit: 200, order: 'ts', ascending: false });
-          state.verifyQueue = (latest || []).map((d)=>({ id: d.id, time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '', type: d.type || '', loc: d.loc || '', status: d.status || 'Pending', desc: d.desc || '' }));
-          renderStats();
-          renderVerify();
-          renderReportMarkers();
-        } catch {}
+          const newReports = (latest || []).map((d)=>({ 
+            id: d.id, 
+            time: d.ts ? new Date(d.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '', 
+            type: d.type || '', 
+            loc: d.loc || '', 
+            status: d.status || 'Pending', 
+            desc: d.desc || '',
+            contact: d.contact || ''
+          }));
+          
+          // Only update if data actually changed
+          if (JSON.stringify(newReports) !== JSON.stringify(state.verifyQueue)) {
+            state.verifyQueue = newReports;
+            // Persist to localStorage for offline resilience
+            try {
+              localStorage.setItem('dm_reports_cache', JSON.stringify(state.verifyQueue));
+            } catch {}
+            renderStats();
+            renderVerify();
+            renderReportMarkers();
+          }
+        } catch {
+          updateConnectionStatus('connecting', 'Reconnecting...');
+          notifyRealtimeIssue('Latest reports may be out of date. Retrying connection...');
+        }
       });
 
-      const unsubChat = mod.subscribeTable('chat', async (_evt) => {
+      const unsubChat = mod.subscribeTable('chat', async () => {
         try {
           const latest = await mod.fetchLatest('chat', { limit: 200, order: 'ts', ascending: true });
-          state.chat.messages = (latest || []).map((d)=>({ id: d.id, user: d.user || 'Anon', role: d.role || '', text: d.text || '', ts: d.ts ? new Date(d.ts).getTime() : Date.now() }));
-          persistChat();
-          renderChat();
-        } catch {}
+          const newMessages = (latest || []).map((d)=>({ 
+            id: d.id, 
+            user: d.user || 'Anon', 
+            role: d.role || '', 
+            text: d.text || '', 
+            ts: d.ts ? new Date(d.ts).getTime() : Date.now() 
+          }));
+          
+          // Only update if data actually changed
+          if (JSON.stringify(newMessages) !== JSON.stringify(state.chat.messages)) {
+            state.chat.messages = newMessages;
+            persistChat();
+            renderChat();
+          }
+        } catch {
+          updateConnectionStatus('connecting', 'Reconnecting...');
+          notifyRealtimeIssue('Community chat may be delayed. Retrying connection...');
+        }
       });
 
       // Clean up on unload
       window.addEventListener('beforeunload', () => { try{unsubAlerts();unsubReports();unsubChat();}catch{} });
     } catch (err) {
-      console.warn('Firestore not initialized; continuing with local demo data.', err);
+      console.error('Supabase connection failed:', err);
+      updateConnectionStatus('offline', 'Connection Failed');
+      
+      // Show detailed error to user
+      let errorMessage = 'Connection to database failed. ';
+      if (err.message.includes('timeout')) {
+        errorMessage += 'The server is not responding. Please check your internet connection.';
+      } else if (err.message.includes('auth')) {
+        errorMessage += 'Authentication failed. Please sign in again.';
+      } else if (err.message.includes('CORS')) {
+        errorMessage += 'Cross-origin request blocked. Please use HTTPS or check server configuration.';
+      } else {
+        errorMessage += `Error: ${err.message}`;
+      }
+      errorMessage += ' Cached data will be shown until the connection is restored.';
+      
+      window.notifications?.error(errorMessage);
     }
   })();
 });
@@ -1292,7 +1503,6 @@ function startLocationWatch(map){
     updateMyLocationMarker(map, pos.coords);
     if(!myLocationCentered[key]){ map.setView([pos.coords.latitude, pos.coords.longitude], 13); myLocationCentered[key] = true; }
   }, (err)=>{
-    console.warn('watchPosition error', err);
     const code = err && err.code;
     if(code === 1){ // PERMISSION_DENIED
   setMapHelp(map, window.I18n ? I18n.t('geo.permissionDenied') : 'Location permission denied. Click the lock icon in the address bar, allow Location, and try again.');
@@ -1326,7 +1536,7 @@ function geolocateAndCenter(map, { silent = false } = {}){
       startLocationWatch(map);
   setMapHelp(map, window.I18n ? I18n.t('geo.liveEnabled') : 'Live location enabled.');
     }, (err)=>{
-      if(silent){ console.warn('Geolocation failed:', err); return; }
+      if(silent){ return; }
       const code = err && err.code;
       if(code === 1){
   setMapHelp(map, window.I18n ? I18n.t('geo.permissionDenied') : 'Location permission denied. Use site settings to allow Location and click "Locate me" again.');
