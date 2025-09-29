@@ -432,22 +432,22 @@
 
       <div class="card role-only authority ndrf mt-16">
         <div class="card-header">
-          <strong>Applications awaiting review</strong>
-          <span class="muted">Authority &amp; NDRF</span>
+          <strong data-i18n="volunteer.applications.title">Applications awaiting review</strong>
+          <span class="muted" data-i18n="volunteer.applications.sub">Authority &amp; NDRF</span>
         </div>
         <div class="card-body">
-          <div id="volunteer-applications-message" class="muted" role="status" aria-live="polite"></div>
+          <div id="volunteer-applications-message" class="muted" role="status" aria-live="polite" data-i18n="volunteer.applications.none">No pending applications.</div>
           <div class="table-responsive">
-            <table class="volunteer-applications-table" aria-label="Pending volunteer applications">
+            <table class="volunteer-applications-table" aria-label="Pending volunteer applications" data-i18n-aria-label="volunteer.applications.title">
               <thead>
                 <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Skills</th>
-                  <th scope="col">Availability</th>
-                  <th scope="col">Contact</th>
-                  <th scope="col">Submitted</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Actions</th>
+                  <th scope="col" data-i18n="volunteer.table.name">Name</th>
+                  <th scope="col" data-i18n="volunteer.table.skills">Skills</th>
+                  <th scope="col" data-i18n="volunteer.table.availability">Availability</th>
+                  <th scope="col" data-i18n="volunteer.table.contact">Contact</th>
+                  <th scope="col" data-i18n="volunteer.table.submitted">Submitted</th>
+                  <th scope="col" data-i18n="volunteer.table.status">Status</th>
+                  <th scope="col" data-i18n="volunteer.table.actions">Actions</th>
                 </tr>
               </thead>
               <tbody id="volunteer-applications"></tbody>
@@ -530,6 +530,10 @@
               <div class="form-group">
                 <label for="volunteer-motivation" data-i18n="volunteer.form.experience">Tell us about your experience (optional)</label>
                 <textarea id="volunteer-motivation" name="motivation" rows="3" class="input" maxlength="1000" placeholder="Share any prior volunteering or response experience" data-i18n-placeholder="volunteer.form.placeholder.experience"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="volunteer-comments" data-i18n="volunteer.form.comments">Comments</label>
+                <textarea id="volunteer-comments" name="comments" rows="2" class="input" maxlength="1000" placeholder="Add any comments for the reviewer (optional)" data-i18n-placeholder="volunteer.form.placeholder.comments"></textarea>
               </div>
               <p class="form-help" data-i18n="volunteer.form.help">We only use this information to coordinate official relief tasks. Your data is stored securely and never shared publicly.</p>
               <div class="form-feedback" id="volunteer-feedback" role="alert" aria-live="polite"></div>
