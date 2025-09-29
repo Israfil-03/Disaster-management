@@ -14,6 +14,7 @@
     en: {
       // Common
       'skip.to.main': 'Skip to main content',
+      'brand.name': 'AadhyaPath',
       'brand.sub': 'Community Crisis Response',
       'brand.dashboard.tag': 'Crisis & Resilience Dashboard',
       'nav.login': 'Login',
@@ -302,6 +303,7 @@
     hi: {
       // Common
       'skip.to.main': 'मुख्य सामग्री पर जाएँ',
+      'brand.name': 'आध्यापथ',
       'brand.sub': 'समुदाय संकट प्रतिक्रिया',
       'brand.dashboard.tag': 'संकट और लचीलापन डैशबोर्ड',
       'nav.login': 'लॉग इन',
@@ -661,6 +663,7 @@
     bn: {
       // Common
       'skip.to.main': 'মূল বিষয়বস্তুরে যান',
+      'brand.name': 'আধ্যাপথ',
       'brand.sub': 'কমিউনিটি সংকট প্রতিক্রিয়া',
       'brand.dashboard.tag': 'সংকট ও স্থিতিস্থাপকতা ড্যাশবোর্ড',
       'nav.login': 'লগ ইন',
