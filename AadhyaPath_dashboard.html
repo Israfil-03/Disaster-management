@@ -33,6 +33,12 @@
     href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
     crossorigin=""
   />
+  <!-- Leaflet.draw CSS for drawing tools -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"
+    crossorigin=""
+  />
 </head>
 <body>
   
@@ -349,6 +355,22 @@
         <div class="card-header"><strong data-i18n="risk.map.title">Risk & Impact Map</strong><span class="muted" data-i18n="risk.map.sub">Interactive</span><button class="btn outline" id="locate-risk" title="Center map to my location" data-i18n="btn.locateMe">Locate me</button></div>
           <div class="card-body">
           <div id="risk-map" class="map-container" role="img" aria-label="Map with risk layers"></div>
+          <div class="map-footer">
+            <div class="map-controls horizontal">
+              <h4>Map Layers</h4>
+              <label><input type="checkbox" class="layer-toggle" data-layer="drought" checked> Drought Zones</label>
+              <label><input type="checkbox" class="layer-toggle" data-layer="earthquake" checked> Earthquake Zones</label>
+              <label><input type="checkbox" class="layer-toggle" data-layer="flood" checked> Flood Zones</label>
+              <label><input type="checkbox" class="layer-toggle" data-layer="shelter"> Shelters</label>
+              <label><input type="checkbox" class="layer-toggle" data-layer="hospital"> Hospitals</label>
+              <label><input type="checkbox" class="layer-toggle" data-layer="food"> Food Resources</label>
+              <label><input type="checkbox" class="layer-toggle" data-layer="heatmap"> Incident Heatmap</label>
+            </div>
+            <div class="map-actions">
+              <button class="btn role-only authority" id="draw-evacuation-zone">Draw Evacuation Zone</button>
+              <button class="btn" id="filter-by-boundary">Filter by Boundary</button>
+            </div>
+          </div>
           <p class="help mt-8" data-i18n="risk.map.help">Interactive base map; risk and impact layers can be added next.</p>
         </div>
       </div>
@@ -789,6 +811,18 @@
   <!-- MarkerCluster JS (optional) -->
   <script
     src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"
+    crossorigin=""
+    defer
+  ></script>
+  <!-- Leaflet.heat for heatmap visualization -->
+  <script
+    src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"
+    crossorigin=""
+    defer
+  ></script>
+  <!-- Leaflet.draw for drawing tools -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"
     crossorigin=""
     defer
   ></script>

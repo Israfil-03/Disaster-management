@@ -159,6 +159,14 @@ const state = {
     { name: 'Mega Relief Warehouse', type: 'food', lat: 22.3072, lng: 73.1812, details: 'Bulk food grains and ready-to-eat meals', advisory: 'Coordinate last mile delivery partners.' },
     { name: 'Mobile Field Hospital', type: 'medicine', lat: 13.3392, lng: 77.1135, details: 'Surgical unit with trauma specialists', advisory: 'Pre-register critical cases and blood donors.' },
     { name: 'Multi-purpose Cyclone Shelter', type: 'shelter', lat: 19.8122, lng: 85.8283, details: 'Raised platform shelter with resilient power', advisory: 'Activate evac shuttles for coastal hamlets.' }
+  ],
+  hospitals: [
+    { name: 'General Hospital', type: 'hospital', lat: 28.6139, lng: 77.2090, details: '24/7 emergency services', contact: '+91-11-2201-4422' },
+    { name: 'City Hospital', type: 'hospital', lat: 19.0760, lng: 72.8777, details: 'Multi-specialty hospital', contact: '+91-22-5551-0101' }
+  ],
+  food_resources: [
+    { name: 'Community Kitchen', type: 'food', lat: 12.9716, lng: 77.5946, details: 'Hot meals three times a day', contact: '+91-80-3300-9988' },
+    { name: 'Food Bank', type: 'food', lat: 21.1458, lng: 79.0882, details: 'Dry ration distribution', contact: '+91-712-555-1234' }
   ]
 };
 
@@ -184,6 +192,8 @@ const MAP_ICON_ASSETS = {
   supply: 'food.png',
   medical: 'hospital.png',
   medicine: 'hospital.png',
+  hospital: 'hospital.png',
+  school: 'school.png',
   drought: 'drought.png',
   flood: 'flood.png',
   earthquake: 'earthquake.png'
@@ -354,6 +364,35 @@ function initMaps(){
   if(maps.resources && !layers.shelters) layers.shelters = L.layerGroup().addTo(maps.resources);
   if(maps.resources && !layers.resourceCenters) layers.resourceCenters = L.layerGroup().addTo(maps.resources);
   if(maps.risk && !layers.riskHotspots) layers.riskHotspots = L.layerGroup().addTo(maps.risk);
+  if(maps.risk && !layers.drought) layers.drought = L.layerGroup().addTo(maps.risk);
+  if(maps.risk && !layers.earthquake) layers.earthquake = L.layerGroup().addTo(maps.risk);
+  if(maps.risk && !layers.flood) layers.flood = L.layerGroup().addTo(maps.risk);
+  if(maps.risk && !layers.shelter) layers.shelter = L.layerGroup().addTo(maps.risk);
+  if(maps.risk && !layers.hospital) layers.hospital = L.layerGroup().addTo(maps.risk);
+  if(maps.risk && !layers.food) layers.food = L.layerGroup().addTo(maps.risk);
+}
+
+function initLayerToggles() {
+  $$('.layer-toggle').forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      const layerName = checkbox.dataset.layer;
+      if (layerName === 'heatmap') {
+        if (checkbox.checked) {
+          renderHeatmap();
+        } else {
+          if (layers.heatmap) {
+            layers.heatmap.clearLayers();
+          }
+        }
+      } else if (layers[layerName]) {
+        if (checkbox.checked) {
+          maps.risk.addLayer(layers[layerName]);
+        } else {
+          maps.risk.removeLayer(layers[layerName]);
+        }
+      }
+    });
+  });
 }
 
 function colorForSeverity(sev){
@@ -465,6 +504,7 @@ function renderRoleBadge(){
 
   if(isAdminRole(state.role)){
     loadPendingVolunteerApplications({ silent: true });
+    initDrawing();
   } else if(state.volunteerApplications.length){
     state.volunteerApplications = [];
     renderVolunteerApplications();
@@ -1712,6 +1752,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initTabs(); // Keyboard-friendly tabs
   initChat(); // Community chat
   initVolunteerModal();
+  initLayerToggles();
 
   // Apply icons directly from assets/icons
   applyIcons(document);
@@ -1729,6 +1770,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderReportMarkers();
   renderShelterMarkers();
   renderResourceCenters();
+  renderRiskMarkers();
   renderRiskMarkers();
   // Optional: center one map to user location for demo
   geolocateAndCenter(maps.alerts || maps.resources || maps.reports, { silent: true });
@@ -2082,13 +2124,90 @@ function renderShelterMarkers(){
     const ratio = s.avail / Math.max(1, s.cap);
     const occupancy = Math.round(ratio * 100);
     const icon = getMapIcon('shelter');
+    const popupContent = `<strong>${s.name}</strong><br>${window.I18n ? I18n.t('table.capacity') : 'Capacity'}: ${s.cap}<br>${window.I18n ? I18n.t('table.available') : 'Available'}: ${s.avail} (${occupancy}% open)<br>${window.I18n ? I18n.t('table.contact') : 'Contact'}: ${s.contact}<br><button class="btn btn-small" onclick="getRouteToShelter(${lat}, ${lng})">Navigate</button>`;
     const m = L.marker([lat,lng], { icon: icon || undefined, title: s.name })
-      .bindPopup(`<strong>${s.name}</strong><br>${window.I18n ? I18n.t('table.capacity') : 'Capacity'}: ${s.cap}<br>${window.I18n ? I18n.t('table.available') : 'Available'}: ${s.avail} (${occupancy}% open)<br>${window.I18n ? I18n.t('table.contact') : 'Contact'}: ${s.contact}`);
+      .bindPopup(popupContent);
     layers.shelters.addLayer(m);
     points.push([lat,lng]);
   });
   if(points.length >= 2) maps.resources.fitBounds(points, { padding: [20,20] });
   else if(points.length === 1) maps.resources.setView(points[0], 12);
+}
+
+function getRouteToShelter(lat, lng) {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(position => {
+    const userLat = position.coords.latitude;
+    const userLng = position.coords.longitude;
+    const url = `https://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${lng},${lat}?overview=full&geometries=geojson`;
+
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        if (data.routes && data.routes.length > 0) {
+          const route = data.routes[0].geometry.coordinates;
+          const latlngs = route.map(coord => [coord[1], coord[0]]);
+          L.polyline(latlngs, { color: 'blue' }).addTo(maps.resources);
+          maps.resources.fitBounds(L.polyline(latlngs).getBounds());
+        } else {
+          alert('Could not find a route to the shelter.');
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching route:', error);
+        alert('Could not fetch the route. Please try again later.');
+      });
+  }, () => {
+    alert('Unable to retrieve your location.');
+  });
+}
+
+function renderHeatmap() {
+  if (!maps.risk || typeof L.heatLayer === 'undefined') return;
+  if (layers.heatmap) {
+    layers.heatmap.clearLayers();
+  } else {
+    layers.heatmap = L.layerGroup().addTo(maps.risk);
+  }
+
+  const heatData = state.alerts.map(alert => [alert.lat, alert.lng, 0.5]);
+  L.heatLayer(heatData, { radius: 25 }).addTo(layers.heatmap);
+}
+
+function initDrawing() {
+  if (!maps.risk || typeof L.Control.Draw === 'undefined') return;
+
+  const drawnItems = new L.FeatureGroup();
+  maps.risk.addLayer(drawnItems);
+
+  const drawControl = new L.Control.Draw({
+    edit: {
+      featureGroup: drawnItems
+    },
+    draw: {
+      polygon: {
+        allowIntersection: false,
+        showArea: true
+      },
+      rectangle: {
+        showArea: true
+      },
+      circle: false,
+      marker: false,
+      polyline: false
+    }
+  });
+
+  maps.risk.addControl(drawControl);
+
+  maps.risk.on(L.Draw.Event.CREATED, function (event) {
+    const layer = event.layer;
+    drawnItems.addLayer(layer);
+  });
 }
 
 function renderResourceCenters(){
@@ -2109,26 +2228,81 @@ function renderResourceCenters(){
 
 function renderRiskMarkers(){
   if(!maps.risk) return;
-  if(!layers.riskHotspots) layers.riskHotspots = L.layerGroup().addTo(maps.risk);
-  layers.riskHotspots.clearLayers();
-  const points = [];
-  state.hazardHotspots.forEach((spot)=>{
-    if(typeof spot.lat !== 'number' || typeof spot.lng !== 'number') return;
-    const icon = getMapIcon(spot.type) || getMapIcon('location');
-    const popup = [
-      `<strong>${spot.name}</strong>`,
-      spot.details ? `<div>${spot.details}</div>` : ''
-    ];
-    if(spot.advisory){
-      popup.push(`<div class="muted">${spot.advisory}</div>`);
+  renderDroughtZones();
+  renderEarthquakeZones();
+  renderFloodZones();
+  renderShelterMarkersRisk();
+  renderHospitalMarkersRisk();
+  renderFoodMarkersRisk();
+}
+
+function renderDroughtZones() {
+  if (!maps.risk || !layers.drought) return;
+  layers.drought.clearLayers();
+  state.hazardHotspots.forEach(spot => {
+    if (spot.type === 'drought') {
+      const marker = L.marker([spot.lat, spot.lng], { icon: getMapIcon('drought') })
+        .bindPopup(`<strong>${spot.name}</strong><br>${spot.details}<br><small>${spot.advisory}</small>`);
+      layers.drought.addLayer(marker);
     }
-    const marker = L.marker([spot.lat, spot.lng], { icon: icon || undefined, title: spot.name })
-      .bindPopup(popup.filter(Boolean).join(''));
-    layers.riskHotspots.addLayer(marker);
-    points.push([spot.lat, spot.lng]);
   });
-  if(points.length >= 2){ maps.risk.fitBounds(points, { padding:[24,24] }); }
-  else if(points.length === 1){ maps.risk.setView(points[0], 9); }
+}
+
+function renderEarthquakeZones() {
+  if (!maps.risk || !layers.earthquake) return;
+  layers.earthquake.clearLayers();
+  state.hazardHotspots.forEach(spot => {
+    if (spot.type === 'earthquake') {
+      const marker = L.marker([spot.lat, spot.lng], { icon: getMapIcon('earthquake') })
+        .bindPopup(`<strong>${spot.name}</strong><br>${spot.details}<br><small>${spot.advisory}</small>`);
+      layers.earthquake.addLayer(marker);
+    }
+  });
+}
+
+function renderFloodZones() {
+  if (!maps.risk || !layers.flood) return;
+  layers.flood.clearLayers();
+  state.alerts.forEach(alert => {
+    if (alert.hazard === 'Flood' || alert.hazard === 'Heavy Rain') {
+      const marker = L.marker([alert.lat, alert.lng], { icon: getMapIcon('flood') })
+        .bindPopup(`<strong>${alert.hazard}</strong><br>${alert.msg}<br><small>${alert.area}</small>`);
+      layers.flood.addLayer(marker);
+    }
+  });
+}
+
+function renderShelterMarkersRisk() {
+  if (!maps.risk || !layers.shelter) return;
+  layers.shelter.clearLayers();
+  state.shelters.forEach(shelter => {
+    // Mock location for shelters
+    const lat = 20.5937 + (Math.random() - 0.5) * 10;
+    const lng = 78.9629 + (Math.random() - 0.5) * 10;
+    const marker = L.marker([lat, lng], { icon: getMapIcon('shelter') })
+      .bindPopup(`<strong>${shelter.name}</strong><br>Capacity: ${shelter.cap}<br>Available: ${shelter.avail}<br>Contact: ${shelter.contact}`);
+    layers.shelter.addLayer(marker);
+  });
+}
+
+function renderHospitalMarkersRisk() {
+  if (!maps.risk || !layers.hospital) return;
+  layers.hospital.clearLayers();
+  state.hospitals.forEach(hospital => {
+    const marker = L.marker([hospital.lat, hospital.lng], { icon: getMapIcon('hospital') })
+      .bindPopup(`<strong>${hospital.name}</strong><br>${hospital.details}<br>Contact: ${hospital.contact}`);
+    layers.hospital.addLayer(marker);
+  });
+}
+
+function renderFoodMarkersRisk() {
+  if (!maps.risk || !layers.food) return;
+  layers.food.clearLayers();
+  state.food_resources.forEach(foodResource => {
+    const marker = L.marker([foodResource.lat, foodResource.lng], { icon: getMapIcon('food') })
+      .bindPopup(`<strong>${foodResource.name}</strong><br>${foodResource.details}<br>Contact: ${foodResource.contact}`);
+    layers.food.addLayer(marker);
+  });
 }
 
 // Helpers for geolocation UI near the map
@@ -2242,6 +2416,49 @@ function geolocateAndCenter(map, { silent = false } = {}){
   }
 }
 
+function initBoundaryFilter() {
+  if (!maps.risk || typeof L.Control.Draw === 'undefined') return;
+
+  const drawnItems = new L.FeatureGroup();
+  maps.risk.addLayer(drawnItems);
+
+  const drawControl = new L.Control.Draw({
+    edit: {
+      featureGroup: drawnItems
+    },
+    draw: {
+      polygon: false,
+      rectangle: {
+        showArea: true
+      },
+      circle: false,
+      marker: false,
+      polyline: false
+    }
+  });
+
+  maps.risk.addControl(drawControl);
+
+  maps.risk.on(L.Draw.Event.CREATED, function (event) {
+    const layer = event.layer;
+    const bounds = layer.getBounds();
+
+    Object.values(layers).forEach(layerGroup => {
+      if (layerGroup) {
+        layerGroup.eachLayer(marker => {
+          if (bounds.contains(marker.getLatLng())) {
+            marker.setOpacity(1);
+          } else {
+            marker.setOpacity(0.2);
+          }
+        });
+      }
+    });
+
+    drawnItems.addLayer(layer);
+  });
+}
+
 // Init: report type select options with localized hazard names
 function initReportTypeOptions(){
   const rt = document.getElementById('report-type');
@@ -2254,3 +2471,5 @@ function initReportTypeOptions(){
   // Try to keep previous selection if still present
   if(current && HAZARDS.includes(current)) rt.value = current;
 }
+
+document.getElementById('filter-by-boundary')?.addEventListener('click', initBoundaryFilter);
