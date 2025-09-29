@@ -2473,3 +2473,47 @@ function initReportTypeOptions(){
 }
 
 document.getElementById('filter-by-boundary')?.addEventListener('click', initBoundaryFilter);
+
+// Global Search Functionality
+const globalSearch = document.getElementById('global-search');
+const views = $$('.view');
+const tabs = $$('.tab');
+
+globalSearch.addEventListener('keyup', (e) => {
+  const searchTerm = e.target.value.toLowerCase();
+
+  if (searchTerm.length === 0) {
+    // If the search bar is empty, show the active tab
+    tabs.forEach(tab => {
+      if (tab.classList.contains('active')) {
+        const targetView = document.getElementById(tab.getAttribute('aria-controls'));
+        if (targetView) {
+          targetView.classList.add('active');
+        }
+      } else {
+        const targetView = document.getElementById(tab.getAttribute('aria-controls'));
+        if (targetView) {
+          targetView.classList.remove('active');
+        }
+      }
+    });
+    return;
+  }
+
+  views.forEach(view => {
+    const viewContent = view.textContent.toLowerCase();
+    const tab = document.getElementById(`${view.id.split('-')[0]}-tab`);
+
+    if (viewContent.includes(searchTerm)) {
+      view.classList.add('active');
+      if (tab) {
+        tab.classList.add('active');
+      }
+    } else {
+      view.classList.remove('active');
+      if (tab) {
+        tab.classList.remove('active');
+      }
+    }
+  });
+});
