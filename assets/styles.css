@@ -260,7 +260,7 @@ header{
   backdrop-filter:saturate(140%) blur(10px);
   position:sticky;
   top:0;
-  z-index:50;
+  z-index:1000;
 }
 
 .container{
@@ -436,7 +436,7 @@ header{
   border:1px solid var(--border);
   border-radius:12px;
   box-shadow:0 20px 40px rgba(0,0,0,.35);
-  z-index:1000;
+  z-index:1500;
   display:none;
 }
 
@@ -979,6 +979,21 @@ label{
 }
 @media(min-width: 1200px){
   .map-container{ height: 520px; }
+}
+
+.map-controls.horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.map-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  z-index: 1;
 }
 
 /* Education Page Styles */
