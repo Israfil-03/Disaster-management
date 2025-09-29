@@ -2483,28 +2483,26 @@ globalSearch.addEventListener('keyup', (e) => {
   const searchTerm = e.target.value.toLowerCase();
 
   if (searchTerm.length === 0) {
-    // If the search bar is empty, show the active tab
-    tabs.forEach(tab => {
-      if (tab.classList.contains('active')) {
-        const targetView = document.getElementById(tab.getAttribute('aria-controls'));
-        if (targetView) {
-          targetView.classList.add('active');
-        }
-      } else {
-        const targetView = document.getElementById(tab.getAttribute('aria-controls'));
-        if (targetView) {
-          targetView.classList.remove('active');
-        }
-      }
-    });
+    // If the search bar is empty, show the first tab
+    views.forEach(v => v.classList.remove('active'));
+    tabs.forEach(t => t.classList.remove('active'));
+    tabs[0].classList.add('active');
+    document.getElementById(tabs[0].getAttribute('aria-controls')).classList.add('active');
     return;
   }
 
-  views.forEach(view => {
+  let firstMatchingView = null;
+  for (const view of views) {
     const viewContent = view.textContent.toLowerCase();
-    const tab = document.getElementById(`${view.id.split('-')[0]}-tab`);
-
     if (viewContent.includes(searchTerm)) {
+      firstMatchingView = view;
+      break;
+    }
+  }
+
+  views.forEach(view => {
+    const tab = document.getElementById(`${view.id.split('-')[0]}-tab`);
+    if (view === firstMatchingView) {
       view.classList.add('active');
       if (tab) {
         tab.classList.add('active');
