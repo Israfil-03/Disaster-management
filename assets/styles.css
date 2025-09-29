@@ -1563,3 +1563,27 @@ body.modal-open{ overflow:hidden; }
   .modal{ --modal-gap: clamp(.75rem, 1.5vw, 1rem); }
   .modal-content{ max-height:calc(100vh - (2 * var(--modal-gap))); max-width:calc(100vw - (2 * var(--modal-gap))); }
 }
+
+/* Search Bar Styles */
+.search-wrapper {
+  position: relative;
+}
+
+#global-search {
+  padding-left: 2.5rem;
+  width: 250px;
+  transition: width 0.3s ease-in-out;
+}
+
+#global-search:focus {
+  width: 350px;
+}
+
+.search-wrapper::before {
+  content: '🔍';
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.5;
+}

@@ -24,6 +24,34 @@ const PRECACHE_URLS = [
   'assets/app.js',
   'assets/i18n.js',
   'assets/icons/app-mark.svg',
+  'assets/icons/app-mark-192.png',
+  'assets/icons/bell.svg',
+  'assets/icons/hazard-cold.svg',
+  'assets/icons/hazard-cyclone.svg',
+  'assets/icons/hazard-drought.svg',
+  'assets/icons/hazard-earthquake.svg',
+  'assets/icons/hazard-fire.svg',
+  'assets/icons/hazard-flood.svg',
+  'assets/icons/hazard-forest-fire.svg',
+  'assets/icons/hazard-health.svg',
+  'assets/icons/hazard-heat.svg',
+  'assets/icons/hazard-landslide.svg',
+  'assets/icons/hazard-lightning.svg',
+  'assets/icons/hazard-multi.svg',
+  'assets/icons/hazard-rain.svg',
+  'assets/icons/hazard-storm.svg',
+  'assets/icons/hazard-tsunami.svg',
+  'assets/icons/map.svg',
+  'assets/icons/profile.svg',
+  'assets/icons/video.svg',
+  'assets/map_icon/drought.png',
+  'assets/map_icon/earthquake.png',
+  'assets/map_icon/flood.png',
+  'assets/map_icon/food.png',
+  'assets/map_icon/hospital.png',
+  'assets/map_icon/location.png',
+  'assets/map_icon/school.png',
+  'assets/map_icon/shelter.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -77,55 +105,28 @@ self.addEventListener('fetch', (event) => {
   // Ignore non-GET
   if (req.method !== 'GET') return;
 
-  // Same-origin navigation requests: network-first -> offline
+  // API calls: stale-while-revalidate
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(staleWhileRevalidate(req));
+    return;
+  }
+
+  // Video files: cache-first
+  if (req.url.endsWith('.mp4')) {
+    event.respondWith(
+      caches.match(req).then((cached) => cached || networkFirst(req))
+    );
+    return;
+  }
+
+  // Navigation requests: network-first -> offline
   if (req.mode === 'navigate') {
     event.respondWith(networkFirst(req));
     return;
   }
 
-  // Static assets: CSS/JS -> stale-while-revalidate
-  if (url.origin === location.origin && (/\.css$|\.js$/i.test(url.pathname))) {
-    event.respondWith(staleWhileRevalidate(req));
-    return;
-  }
-
-  // Icons/SVGs: cache-first with SWR update
-  if (url.origin === location.origin && url.pathname.startsWith('/assets/icons/')) {
-    event.respondWith(
-      caches.match(req).then((cached) => cached || staleWhileRevalidate(req))
-    );
-    return;
-  }
-
-  // Leaflet tiles and CDN libs: tile servers and unpkg -> SWR
-  if (/^https:\/\/([abc]\.)?tile\.openstreetmap\.org\//.test(req.url) || /^https:\/\/unpkg\.com\//.test(req.url)) {
-    event.respondWith(staleWhileRevalidate(req));
-    return;
-  }
-
-  // Videos: let range requests pass through network but cache completed GETs opportunistically
-  if (url.origin === location.origin && /\/assets\/videos\/.+\.mp4$/i.test(url.pathname)) {
-    event.respondWith(
-      (async () => {
-        // If it's a range request, stream from network (browsers expect proper 206 handling)
-        if (req.headers.has('range')) return fetch(req);
-        const cached = await caches.match(req);
-        if (cached) return cached;
-        try {
-          const res = await fetch(req);
-          const cache = await caches.open(RUNTIME);
-          cache.put(req, res.clone());
-          return res;
-        } catch {
-          return fetch(req);
-        }
-      })()
-    );
-    return;
-  }
-
-  // Default: try cache, then network
+  // All other assets: cache-first, then network
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req))
+    caches.match(req).then((cached) => cached || networkFirst(req))
   );
 });
