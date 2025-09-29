@@ -1,8 +1,9 @@
-import { pool, ensureUsersTable, healthCheck } from '../lib/db.js';
+import { pool, ensureUsersTable, ensureVolunteerTables, healthCheck } from '../lib/db.js';
 
 async function main() {
   console.log('DB health:', await healthCheck().catch((e) => ({ error: e.message })));
   await ensureUsersTable();
+  await ensureVolunteerTables();
   const cols = await pool.query(
     `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'users' ORDER BY ordinal_position`
   );
