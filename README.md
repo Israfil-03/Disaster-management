@@ -60,7 +60,7 @@ AadhyaPath is designed for three main types of users: General Users, Volunteers,
 
 | Dashboard | Alerts View |
 | :---: | :---: |
-| ![Dashboard](./Screenshot%202025-09-30%20101016.png) | ![Alerts View](./Screenshot%202025-09-30%20100852.png) |
+| ![Dashboard](./Screenshot%202025-09-30%20100852.png) | ![Alerts View](./Screenshot%202025-09-30%20101016.png) |
 
 
 
