@@ -1,164 +1,129 @@
-# AadhyaPath — PWA
+# AadhyaPath - Disaster Management Web Application
 
-## Local development
-## Deployment
+**AadhyaPath** is a comprehensive disaster management web application designed to provide real-time information, facilitate communication, and coordinate relief efforts during emergencies. This platform connects users with critical resources, enables incident reporting, and empowers communities to build resilience.
 
-### Frontend on GitHub Pages
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repo includes a GitHub Actions workflow (`.github/workflows/gh-pages.yml`) that publishes the static site to GitHub Pages on pushes to `main`.
+---
 
-Steps:
-- In GitHub → Settings → Pages, set Source to "GitHub Actions".
-- Push to `main` (or run the workflow manually).
-- Your site will be available at `https://<username>.github.io/<repo>/`.
+## 🚀 About The Project
 
-### Backend (Auth APIs)
+In times of crisis, timely and accurate information is crucial. AadhyaPath serves as a centralized hub for disaster response, bridging the gap between official agencies, volunteers, and the public. The application is designed to be intuitive, accessible, and reliable, even in low-connectivity situations.
 
-GitHub Pages is static-only, so the auth APIs must run on a separate host (Render, Railway, Azure, AWS, etc.). The server supports:
-- `DATABASE_URL` or discrete `PG*` env vars
-- `CORS_ORIGINS` to restrict allowed web origins (comma-separated)
+**Live Demo:** https://israfil-03.github.io/AadhyaPath/
 
-After you deploy the backend, set the frontend to target that API by one of the following:
-- Add a `<meta name="api-base" content="https://your-api.example.com">` tag in `auth.html` and `AadhyaPath_dashboard.html`, or
-- Set `window.__API_BASE__ = 'https://your-api.example.com'` before loading `assets/config.js`.
+---
 
-By default, when running locally, the frontend uses `http://localhost:5174` as API base.
-# AadhyaPath (PWA)
+## ✨ Features
 
-A single‑page crisis information and resilience app: view alerts, report incidents, find nearby resources, coordinate volunteers, and learn do's & don'ts.
+*   **Real-time Hazard Alerts:** View a dynamic feed of alerts, filterable by disaster type (e.g., flood, earthquake, fire) and severity.
+*   **Interactive Resource Map:** Locate nearby shelters, hospitals, food distribution points, and other essential services.
+*   **Incident Reporting:** Users can report incidents directly from their location, providing details and images to alert authorities.
+*   **Volunteer Coordination:** A dedicated portal for volunteers to register, view available tasks, and receive assignments from administrators.
+*   **Educational Content:** Access a library of "Do's and Don'ts" videos and articles for various emergency scenarios.
+*   **Offline Functionality:** As a Progressive Web App (PWA), AadhyaPath can be installed on your device and works offline, ensuring access to critical information at all times.
+*   **User Authentication:** Secure login and registration for users and administrators.
 
-## Quick start
+---
 
-- Open `index.html` in your browser for the new first‑time experience (landing), or serve locally:
+## 📖 How to Use the Web App
 
-```powershell
-# Using Node.js
-npx serve .
+AadhyaPath is designed for three main types of users: General Users, Volunteers, and Administrators.
 
-# Or using Python
-python -m http.server 8000
-```
+### 1. As a General User
 
-Then visit `http://localhost:8000`.
+1.  **Navigate to the Website:** Open the application in your web browser.
+2.  **Create an Account or Log In:** Use the authentication page to sign up or log in.
+3.  **View the Dashboard:** After logging in, you'll see the main dashboard with an overview of active alerts.
+4.  **Explore Alerts:** Click on the "Alerts" tab to see a detailed list of hazards. Use the filters to narrow down the information.
+5.  **Use the Map:** Go to the "Map" section to find nearby resources. You can filter by resource type (e.g., shelters, hospitals).
+6.  **Report an Incident:** If you witness an emergency, use the "Report" feature to send details and your location to the authorities.
+7.  **Learn Safety Measures:** Visit the "Resources" section to watch educational videos on disaster preparedness.
 
-Entry and auth flow
-- Start at `index.html` (informational landing)
-- Choose `Create your account` to go to `auth.html?mode=signup` or `I already have an account` to go to `auth.html?mode=login`
-- After signup/login, you will be redirected to `AadhyaPath_dashboard.html` (dashboard). Direct access to the dashboard is gated.
+### 2. As a Volunteer
 
+1.  **Register as a Volunteer:** In the "Volunteer Hub," fill out the registration form with your skills and availability.
+2.  **Await Approval:** An administrator will review your application. Once approved, you will gain access to the volunteer dashboard.
+3.  **View and Accept Tasks:** Browse the list of available tasks (e.g., debris cleanup, food distribution) and accept assignments that match your skills.
+4.  **Track Your Contributions:** Your completed tasks will be logged in your profile.
 
+### 3. As an Administrator
 
-## Features
+1.  **Log In with Admin Credentials:** Access the admin panel using your administrator account.
+2.  **Manage Volunteers:** Review and approve volunteer applications.
+3.  **Create and Assign Tasks:** Post new volunteer tasks with descriptions, locations, and required skills. Assign tasks to approved volunteers.
+4.  **Broadcast Alerts:** Create and publish new hazard alerts to inform all users.
 
-- Multi-hazard alerts and filters (now includes slow-onset hazards: Air Pollution, Land Degradation, Sea Level Rise)
-- Incident reporting and verification (demo data)
-- Shelters/resources and map placeholders on Alerts and Report pages
-- Volunteers and task assignment, now with end-to-end registration + admin approvals
-- Do's & Don'ts with short videos
+---
 
-## Project structure
+## 📸 Screenshots
 
-- `index.html` – landing page (first visit)
-- `AadhyaPath_dashboard.html` – main UI (Dashboard)
-- `auth.html` – login/signup page
-- `assets/styles.css` – styles
-- `assets/app.js` – app logic and demo data
-- `assets/landing.css`, `assets/landing.js` – landing styles and minimal interactions
-- `assets/auth.css`, `assets/auth.js` – authentication styles and minimal interactions
-- `assets/icons/`, `assets/videos/`, `assets/images/` – assets
+| Dashboard | Alerts View |
+| :---: | :---: |
+| ![Dashboard](./Screenshot%202025-09-30%20101016.png) | ![Alerts View](./Screenshot%202025-09-30%20100852.png) |
 
 
-## PWA (Installable, offline)
 
-- We ship a `manifest.webmanifest` and `service-worker.js` with precache + runtime caching.
-- To test installability, serve over `https://` or `http://localhost` and open DevTools → Application → Manifest.
-- Offline: disconnect the network and reload — the Offline page will appear for navigations and cached pages/assets will still load.
+## 🛠️ Tech Stack
 
-Notes
-- Map tiles from OpenStreetMap and Leaflet CDN are cached with a stale‑while‑revalidate strategy when online; they may not be available on a cold offline start if not previously viewed.
-- Large videos are streamed (Range requests) and not aggressively cached to avoid storage bloat.
+*   **Frontend:** HTML5, CSS3, JavaScript (ES6+)
+*   **Backend:** Node.js with Express.js
+*   **Database & Authentication:** Supabase (PostgreSQL)
+*   **Deployment:**
+    *   **Frontend:** Deployed on services like GitHub Pages, Netlify, or Vercel.
+    *   **Backend:** Hosted on Render, Heroku, or a similar platform.
 
-# Disaster-Management
-## Supabase setup (database, realtime, RLS)
+---
 
-We migrated the app from Firebase to Supabase. To initialize the database and realtime policies:
+## 🏁 Getting Started
 
-1) Install Supabase CLI
-	- Windows (PowerShell): `iwr https://repo.supabase.com/install/windows.ps1 -useb | iex`
+To get a local copy up and running, follow these simple steps.
 
-2) Login and link your project
-	- `supabase login`
-	- `supabase link --project-ref itniteawqzjuympwxorv` (replace with your project ref if different)
+### Prerequisites
 
-3) Push the migration
-	- From the project root (this folder): `supabase db push`
+*   Node.js and npm installed on your machine.
+*   A Supabase account for database and authentication services.
 
-This applies `supabase/migrations/20250928_init.sql` which:
-	- Creates tables: alerts, reports, chat, profiles
-	- Enables Row Level Security and basic authenticated policies
-	- Adds tables to `supabase_realtime` publication for realtime updates
+### Installation
 
-4) In Supabase Dashboard
-	- Enable Email/Password auth provider (Authentication > Providers)
-	- Under Database > Replication, confirm the above tables are included in `supabase_realtime`
+1.  **Clone the repository:**
+    ```sh
+    git clone https://github.com/Israfil-03/AadhyaPath.git
+    ```
+2.  **Navigate to the project directory:**
+    ```sh
+    cd AadhyaPath
+    ```
+3.  **Install frontend dependencies:**
+    *(No frontend build step required for this vanilla JS project)*
+4.  **Install backend dependencies:**
+    ```sh
+    cd server
+    npm install
+    ```
+5.  **Configure Environment Variables:**
+    *   Create a `.env` file in the `server` directory.
+    *   Add your Supabase Project URL and Anon Key:
+        ```
+        SUPABASE_URL=your_supabase_project_url
+        SUPABASE_KEY=your_supabase_anon_key
+        ```
+6.  **Run the backend server:**
+    ```sh
+    npm start
+    ```
+7.  **Open the `index.html` file** in your browser to view the application.
 
-5) Configure local `.env`
-	- Copy `server/.env.example` to `server/.env`.
-	- For Supabase production hosting, set both pooled and direct URLs:
-	  - `DATABASE_URL=postgresql://postgres.itniteawqzjuympwxorv:Your%40Password@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true`
-	  - `DIRECT_URL=postgresql://postgres.itniteawqzjuympwxorv:Your%40Password@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres`
-	- Replace `Your%40Password` with your actual password, URL-encoding any special characters (`@` → `%40`, `:` → `%3A`, etc.).
-	- Provide the Supabase JWT secret (`SUPABASE_JWT_SECRET`) so the backend can verify dashboard tokens, and keep it private.
-	- Expose the public browser values (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) if you prefer not to use the default meta tags.
+---
 
-6) Run locally
-	- In `server/`, `npm install` then `npm start`
+## 📄 License
 
-Troubleshooting
-	- If records appear then disappear on refresh, ensure the tables exist and you are logged in (RLS requires `authenticated`).
-	- If realtime doesn’t fire, confirm the tables are in the `supabase_realtime` publication and you used the anon public key on the frontend.
-	- If server cannot connect, verify DNS/vpn/firewall and that `sslmode=require` is used by default in driver (pg). The code enables SSL by default for managed hosts.
+Distributed under the MIT License. See `LICENSE` for more information.
 
+---
 
-## Local backend (Node + PostgreSQL)
+## 📧 Contact
 
-This project now includes a minimal Node/Express backend with PostgreSQL for authentication.
+**Project Maintainer:** `Israfil Hoque` - `[israfilhoque523@gmail.com]`
 
-Prereqs:
-- PostgreSQL running locally with a database `aadhya_path` and a `login` table (created automatically if missing)
-- Node.js 18+
-
-Configure environment:
-1. Copy `server/.env.example` to `server/.env`
-2. Update `PGPASSWORD` with your local password
-
-Install deps and run:
-
-```
-cd server
-npm install
-npm run start
-```
-
-By default, the server hosts the frontend at `http://localhost:5174/` and APIs under `/api/*`.
-
-Auth endpoints:
-- `POST /api/auth/signup` — body: `{ name, email, password }`
-- `POST /api/auth/login` — body: `{ email, password }`
-
-Notes:
-- The backend prefers a `password_hash` column in `login`. If only `password` exists, it will store plaintext as a backwards-compatible fallback and return a warning. Consider migrating to hashed passwords.
-
-### Volunteer application APIs
-
-The dashboard now submits volunteer registrations to the backend and exposes review endpoints:
-
-- `POST /api/volunteers/apply` — anonymous submission of `{ fullName, email, phone, skills[], availability, preferredLocation?, motivation? }`
-- `GET /api/volunteers` — public list of approved volunteers (sanitized; no contact info)
-- `GET /api/volunteers/applications` — **admin only** (requires Supabase JWT) list of pending applications
-- `PATCH /api/volunteers/:id/status` — **admin only** approve/reject with optional notes, automatically notifies the applicant
-
-To enable the admin endpoints, set `SUPABASE_JWT_SECRET` in `server/.env` (find it in Supabase → Project Settings → API). Dashboard requests include the Supabase access token, which the backend verifies against this secret before allowing approvals.
-
-Optional email notifications use SMTP (Nodemailer). Provide `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` in the environment to send confirmation/approval notices. When SMTP is not configured the backend logs the intent but skips sending (so local development continues to work).
-
+**Project Link:** `[https://github.com/Israfil-03/AadhyaPath]`
