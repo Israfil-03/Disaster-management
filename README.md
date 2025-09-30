@@ -10,7 +10,7 @@
 
 In times of crisis, timely and accurate information is crucial. AadhyaPath serves as a centralized hub for disaster response, bridging the gap between official agencies, volunteers, and the public. The application is designed to be intuitive, accessible, and reliable, even in low-connectivity situations.
 
-**Live Demo:** (https://israfil-03.github.io/AadhyaPath/)
+**Live Demo:** https://israfil-03.github.io/AadhyaPath/
 
 ---
 
@@ -124,6 +124,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 📧 Contact
 
-**Project Maintainer:** `[Your Name]` - `[your-email@example.com]`
+**Project Maintainer:** `Israfil Hoque` - `[israfilhoque523@gmail.com]`
 
 **Project Link:** `[https://github.com/Israfil-03/AadhyaPath]`
